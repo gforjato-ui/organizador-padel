@@ -221,6 +221,16 @@
     .check-list { display: grid; max-height: 230px; gap: 7px; overflow-y: auto; padding: 3px; }
     .check-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: #141d16; font-size: 12px; }
     .check-item input { width: 16px; min-height: 16px; height: 16px; margin: 0; accent-color: var(--green); }
+    .dinner-expense-list { display: grid; gap: 8px; }
+    .dinner-expense-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(110px, .4fr) 32px; align-items: end; gap: 8px; }
+    .dinner-expense-row .field { min-width: 0; }
+    .dinner-card + .dinner-card { margin-top: 14px; }
+    .dinner-summary { display: flex; flex-wrap: wrap; gap: 18px; color: var(--muted); font-size: 12px; }
+    .dinner-summary strong { color: var(--text); }
+    .status-options { display: flex; gap: 8px; }
+    .status-button { flex: 1; min-height: 40px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-raised); color: var(--text); font-weight: 700; }
+    .status-button:hover { border-color: #607258; }
+    .status-button.selected, .status-button[aria-pressed="true"] { border-color: var(--green-dark); background: #273424; color: var(--green); }
     .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .team-box { display: grid; gap: 9px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: #141d16; }
     .team-title { display: flex; align-items: center; justify-content: space-between; color: var(--green); font-size: 11px; font-weight: 750; }
@@ -281,6 +291,7 @@
       .toolbar > .button { flex: 1; }
       .filters { width: 100%; }
       .form-grid, .team-grid { grid-template-columns: 1fr; }
+      .dinner-expense-row { grid-template-columns: minmax(0, 1fr) minmax(95px, .55fr) 32px; }
       .field.full { grid-column: auto; }
       .modal-header { padding-right: 18px; padding-left: 18px; }
       .modal-body { padding: 17px 18px 20px; }
@@ -291,7 +302,7 @@
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="brand"><div class="brand-mark">P</div><div class="brand-name"><span>Padel</span></div></div>
+      <div class="brand"><div class="brand-mark" aria-hidden="true">🎾</div><div class="brand-name"><span>Padel</span></div></div>
       <div class="nav-label">Organizaci&oacute;n</div>
       <nav class="nav" aria-label="Navegación principal">
         <button class="active" data-page="dashboard"><span class="nav-icon">⌂</span> Resumen</button>
@@ -299,6 +310,7 @@
         <button data-page="tournaments"><span class="nav-icon">◈</span> Torneos</button>
         <button data-page="pairs"><span class="nav-icon">♧</span> Parejas</button>
         <button data-page="matches"><span class="nav-icon">⊞</span> Partidos</button>
+        <button data-page="dinners"><span class="nav-icon">♨</span> Cenas</button>
         <button data-page="tournament-summary"><span class="nav-icon">↗</span> Resumen del torneo</button>
       </nav>
       <div class="sidebar-bottom">
@@ -318,27 +330,29 @@
       "use strict";
 
       const STORAGE_KEY = "cancha-padel-manager-v1";
-      const PAGE_NAMES = { dashboard: "Resumen", players: "Jugadores", tournaments: "Torneos", pairs: "Parejas", matches: "Partidos", "tournament-summary": "Resumen del torneo" };
+      const PAGE_NAMES = { dashboard: "Resumen", players: "Jugadores", tournaments: "Torneos", pairs: "Parejas", matches: "Partidos", dinners: "Cenas", "tournament-summary": "Resumen del torneo" };
       let loadError = null;
       let state = loadState();
       let currentPage = "dashboard";
+      let selectedPairTournamentId = null;
       let toastTimer;
 
       function loadState() {
         try {
           const saved = localStorage.getItem(STORAGE_KEY);
-          if (!saved) return { players: [], pairs: [], tournaments: [], matches: [] };
+          if (!saved) return { players: [], pairs: [], tournaments: [], matches: [], dinners: [] };
           const parsed = JSON.parse(saved);
           return {
             players: Array.isArray(parsed.players) ? parsed.players : [],
             pairs: Array.isArray(parsed.pairs) ? parsed.pairs : [],
             tournaments: Array.isArray(parsed.tournaments) ? parsed.tournaments : [],
-            matches: Array.isArray(parsed.matches) ? parsed.matches : []
+            matches: Array.isArray(parsed.matches) ? parsed.matches : [],
+            dinners: Array.isArray(parsed.dinners) ? parsed.dinners : []
           };
         } catch (error) {
           console.error("No se pudieron cargar los datos guardados.", error);
           loadError = error;
-          return { players: [], pairs: [], tournaments: [], matches: [] };
+          return { players: [], pairs: [], tournaments: [], matches: [], dinners: [] };
         }
       }
 
@@ -419,6 +433,10 @@
         return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(Number(value) || 0);
       }
 
+      function dinnerCurrency(value) {
+        return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 }).format(Number(value) || 0);
+      }
+
       function initials(player) {
         return (player.firstName.slice(0, 1) + player.lastName.slice(0, 1)).toUpperCase();
       }
@@ -468,6 +486,7 @@
         if (currentPage === "pairs") content.innerHTML = renderPairs();
         if (currentPage === "tournaments") content.innerHTML = renderTournaments();
         if (currentPage === "matches") content.innerHTML = renderMatches();
+        if (currentPage === "dinners") content.innerHTML = renderDinners();
         if (currentPage === "tournament-summary") content.innerHTML = renderTournamentSummary();
       }
 
@@ -542,20 +561,58 @@
       }
 
       function pairName(pair) {
-        const index = state.pairs.indexOf(pair);
+        const index = state.pairs.filter(function (item) { return item.tournamentId === pair.tournamentId; }).indexOf(pair);
         return "Pareja " + (index + 1);
       }
 
-      function findPairForPlayers(playerIds) {
+      function findPairForPlayers(playerIds, tournamentId) {
         if (!playerIds || playerIds.length !== 2) return null;
         const selected = playerIds.slice().sort().join("|");
-        return state.pairs.find(function (pair) {
+        const matchesPlayers = function (pair) {
           return [pair.firstPlayerId, pair.secondPlayerId].sort().join("|") === selected;
-        }) || null;
+        };
+        if (tournamentId) {
+          return state.pairs.find(function (pair) { return pair.tournamentId === tournamentId && matchesPlayers(pair); }) ||
+            state.pairs.find(function (pair) { return !pair.tournamentId && matchesPlayers(pair); }) || null;
+        }
+        return state.pairs.find(matchesPlayers) || null;
       }
 
-      function renderPairs() {
-        const pairs = state.pairs.filter(function (pair) { return pairPlayers(pair).length === 2; });
+      function availablePlayersForPair(tournamentId, excludedPairId) {
+        const tournament = tournamentById(tournamentId);
+        if (!tournament) return [];
+        const enrolled = new Set((tournament.entries || []).map(function (entry) { return entry.playerId; }));
+        const alreadyPaired = new Set();
+        state.pairs.forEach(function (pair) {
+          if (pair.tournamentId !== tournamentId || pair.id === excludedPairId) return;
+          alreadyPaired.add(pair.firstPlayerId);
+          alreadyPaired.add(pair.secondPlayerId);
+        });
+        return state.players.filter(function (player) {
+          return enrolled.has(player.id) && !alreadyPaired.has(player.id);
+        }).sort(function (a, b) { return fullName(a).localeCompare(fullName(b), "es"); });
+      }
+
+      function pairsForTournament(tournamentId) {
+        const enrolled = new Set(((tournamentById(tournamentId) || {}).entries || []).map(function (entry) { return entry.playerId; }));
+        return state.pairs.filter(function (pair) {
+          return pair.tournamentId === tournamentId && pairPlayers(pair).length === 2 &&
+            enrolled.has(pair.firstPlayerId) && enrolled.has(pair.secondPlayerId);
+        });
+      }
+
+      function renderPairs(selectedId) {
+        const previousSelect = document.getElementById("pair-tournament-filter");
+        const tournamentId = selectedId || (previousSelect && previousSelect.value) || selectedPairTournamentId ||
+          (state.tournaments[0] && state.tournaments[0].id);
+        if (!state.tournaments.length) {
+          return pageHeading("Combinaciones de cancha", "Parejas", "Forma parejas con los jugadores inscriptos en cada torneo.", "Crear torneo", "new-tournament") +
+            '<div class="panel">' + emptyState("♧", "Primero crea un torneo", "Las parejas se forman con los participantes inscriptos en un torneo.", "Crear torneo", "new-tournament") + "</div>";
+        }
+        const tournament = tournamentById(tournamentId) || state.tournaments[0];
+        selectedPairTournamentId = tournament.id;
+        const available = availablePlayersForPair(tournament.id);
+        const pairs = pairsForTournament(tournament.id);
         const rows = pairs.map(function (pair) {
           const players = pairPlayers(pair);
           return '<tr><td><div class="person-name">' + escapeHtml(pairName(pair)) + '</div>' +
@@ -564,9 +621,28 @@
             '</td><td><div class="row-actions"><button class="icon-button" data-action="edit-pair" data-id="' + pair.id + '">Editar</button>' +
             '<button class="icon-button delete" data-action="delete-pair" data-id="' + pair.id + '">×</button></div></td></tr>';
         }).join("");
-        return pageHeading("Combinaciones de cancha", "Parejas", "Forma duplas con tus jugadores y selecciónalas al armar cada partido.", "Formar pareja", "new-pair") +
+        const legacyPairs = state.pairs.filter(function (pair) {
+          return !pair.tournamentId && pairPlayers(pair).length === 2;
+        });
+        const emptyPairs = available.length >= 2
+          ? emptyState("♧", "Todavía no hay parejas", "Forma una pareja con dos participantes disponibles de este torneo.", "Formar pareja", "new-pair")
+          : '<div class="empty"><div class="empty-icon">♧</div><strong>No hay suficientes participantes disponibles</strong><p>Inscribe al menos dos jugadores que todavía no estén en una pareja de este torneo.</p><button class="button small" style="margin-top:15px" data-action="manage-entries" data-id="' +
+            escapeHtml(tournament.id) + '">Gestionar inscripciones</button></div>';
+        const legacyHtml = legacyPairs.length ? '<section class="panel" style="margin-top:14px"><div class="panel-heading"><h2>Parejas anteriores sin torneo</h2></div><p class="helper">Estas parejas se guardaron antes de asociarlas a un torneo y no están disponibles para programar partidos nuevos. Edita una para asignarla al torneo seleccionado.</p><div class="activity-list">' +
+          legacyPairs.map(function (pair) {
+            return '<div class="activity-item"><div class="activity-copy"><div class="activity-title">' + escapeHtml(pairPlayers(pair).map(fullName).join(" / ")) +
+              '</div></div><div class="row-actions"><button class="icon-button" data-action="edit-pair" data-id="' + escapeHtml(pair.id) + '">Asignar</button>' +
+              '<button class="icon-button delete" data-action="delete-pair" data-id="' + escapeHtml(pair.id) + '">×</button></div></div>';
+          }).join("") + '</div></section>' : "";
+        return pageHeading("Combinaciones de cancha", "Parejas", "Forma parejas con los participantes inscriptos. Cada jugador solo puede estar en una pareja por torneo.",
+          available.length >= 2 ? "Formar pareja" : "", "new-pair") +
+          '<div class="toolbar"><div class="filters"><select id="pair-tournament-filter" aria-label="Filtrar parejas por torneo">' +
+          state.tournaments.map(function (item) { return '<option value="' + escapeHtml(item.id) + '"' + (item.id === tournament.id ? " selected" : "") + ">" +
+            escapeHtml(item.name) + "</option>"; }).join("") + '</select></div><button class="button secondary small" data-action="manage-entries" data-id="' +
+          escapeHtml(tournament.id) + '">Inscripciones</button><span class="helper">' + available.length + " jugadores disponibles · " +
+          pairs.length + (pairs.length === 1 ? " pareja" : " parejas") + '</span></div>' +
           (rows ? '<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Pareja</th><th>Categorías</th><th>Acciones</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' :
-            '<div class="panel">' + emptyState("♧", "Todavía no hay parejas", state.players.length < 2 ? "Registra al menos dos jugadores para formar una pareja." : "Combina dos jugadores; luego podrás enfrentar las parejas en un partido.", state.players.length < 2 ? "Agregar jugador" : "Formar pareja", state.players.length < 2 ? "new-player" : "new-pair") + "</div>");
+            '<div class="panel">' + emptyPairs + "</div>") + legacyHtml;
       }
 
       function renderTournaments() {
@@ -578,7 +654,7 @@
             formatDate(tournament.date) + '</td><td>' + escapeHtml(tournament.venue || "—") + '</td><td><span class="pill ' + statusClass + '">' + escapeHtml(tournament.status || "Próximo") +
             '</span></td><td>' + entries.length + ' <span class="person-sub">jug.</span></td><td>' + (Number(tournament.fee) > 0 ? currency(tournament.fee) : "Gratis") +
             '</td><td><span class="pill ' + (paid === entries.length && entries.length ? "paid" : "unpaid") + '">' + paid + "/" + entries.length + " pagos</span></td><td><div class=\"row-actions\">" +
-            '<button class="icon-button" data-action="manage-entries" data-id="' + tournament.id + '">Inscripciones</button><button class="icon-button" data-action="edit-tournament" data-id="' + tournament.id + '">Editar</button>' +
+            '<button class="icon-button" data-action="manage-entries" data-id="' + tournament.id + '">Inscripciones</button><button class="icon-button" data-action="manage-tournament-payments" data-id="' + tournament.id + '">Pagos</button><button class="icon-button" data-action="edit-tournament" data-id="' + tournament.id + '">Editar</button>' +
             '<button class="icon-button delete" data-action="delete-tournament" data-id="' + tournament.id + '">×</button></div></td></tr>';
         }).join("");
         return pageHeading("Fechas y competencias", "Torneos", "Organiza inscripciones y lleva el control de los pagos.", "Crear torneo", "new-tournament") +
@@ -595,8 +671,8 @@
           const tournament = tournamentById(match.tournamentId);
           const teamA = (match.teamA || []).map(playerById).filter(Boolean);
           const teamB = (match.teamB || []).map(playerById).filter(Boolean);
-          const pairA = state.pairs.find(function (pair) { return pair.id === match.pairAId; }) || findPairForPlayers(match.teamA || []);
-          const pairB = state.pairs.find(function (pair) { return pair.id === match.pairBId; }) || findPairForPlayers(match.teamB || []);
+          const pairA = state.pairs.find(function (pair) { return pair.id === match.pairAId; }) || findPairForPlayers(match.teamA || [], match.tournamentId);
+          const pairB = state.pairs.find(function (pair) { return pair.id === match.pairBId; }) || findPairForPlayers(match.teamB || [], match.tournamentId);
           const teamText = function (team, pair) {
             const names = team.map(fullName).join(" / ") || "Sin jugadores";
             return (pair ? pairName(pair) + " · " : "") + names;
@@ -617,10 +693,51 @@
             '<div class="panel">' + emptyState("⊞", "Todavía no hay partidos", "Programa un partido para empezar a cargar resultados.", "Crear partido", "new-match") + "</div>");
       }
 
+      function dinnerTotal(dinner) {
+        return (dinner.expenses || []).reduce(function (total, expense) {
+          return total + Math.max(0, Math.round((Number(expense.amount) || 0) * 100));
+        }, 0) / 100;
+      }
+
+      function renderDinners() {
+        const dinners = state.dinners.slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+        const cards = dinners.map(function (dinner) {
+          const attendees = (dinner.attendees || []).map(function (entry) {
+            return { entry: entry, player: playerById(entry.playerId) };
+          }).filter(function (item) { return item.player; });
+          const total = dinnerTotal(dinner);
+          const share = attendees.length ? total / attendees.length : 0;
+          const paid = attendees.filter(function (item) { return item.entry.paid; }).length;
+          const expenses = (dinner.expenses || []).length ? dinner.expenses.map(function (expense) {
+            return '<div class="activity-item"><div class="activity-copy"><div class="activity-title">' + escapeHtml(expense.description) +
+              '</div></div><div class="activity-result">' + dinnerCurrency(expense.amount) + "</div></div>";
+          }).join("") : '<div class="no-data">Todavía no se cargaron gastos.</div>';
+          const attendeeRows = attendees.length ? attendees.map(function (item) {
+            return '<div class="activity-item"><div class="avatar">' + escapeHtml(initials(item.player)) + '</div><div class="activity-copy"><div class="activity-title">' +
+              escapeHtml(fullName(item.player)) + '</div><div class="activity-meta">Le corresponde ' + dinnerCurrency(share) + '</div></div><span class="pill ' +
+              (item.entry.paid ? "paid" : "unpaid") + '">' + (item.entry.paid ? "Pagó" : "Pendiente") + '</span><button class="button small ' +
+              (item.entry.paid ? "secondary" : "") + '" data-action="toggle-dinner-payment" data-id="' + escapeHtml(item.player.id) + '" data-dinner="' +
+              escapeHtml(dinner.id) + '">' + (item.entry.paid ? "Desmarcar" : "Marcar pago") + '</button></div>';
+          }).join("") : '<div class="no-data">No hay asistentes registrados.</div>';
+          return '<section class="panel dinner-card"><div class="panel-heading"><div><h2>Cena · ' + escapeHtml(formatDate(dinner.date)) +
+            '</h2><div class="person-sub">' + attendees.length + (attendees.length === 1 ? " asistente" : " asistentes") + " · " + paid + "/" + attendees.length + " pagos</div></div>" +
+            '<div class="row-actions"><button class="icon-button" data-action="edit-dinner" data-id="' + escapeHtml(dinner.id) + '">Editar</button>' +
+            '<button class="icon-button delete" data-action="delete-dinner" data-id="' + escapeHtml(dinner.id) + '" title="Eliminar cena">×</button></div></div>' +
+            '<div class="dinner-summary"><span>Total de gastos: <strong>' + dinnerCurrency(total) + '</strong></span><span>Parte por persona: <strong>' +
+            dinnerCurrency(share) + '</strong></span></div><div class="history-section"><h3>Gastos</h3><div class="activity-list">' + expenses +
+            '</div></div><div class="history-section"><h3>Asistentes y pagos</h3><div class="activity-list">' + attendeeRows + '</div></div></section>';
+        }).join("");
+        const description = state.players.length
+          ? "Registra lo que se compra, elige quiénes se quedan a comer y controla quién pagó su parte."
+          : "Agrega jugadores para poder seleccionarlos como asistentes a la cena.";
+        return pageHeading("Comidas del club", "Cenas", description, "Nueva cena", "new-dinner") +
+          (cards || '<div class="panel">' + emptyState("♨", "Todavía no hay cenas", state.players.length ? "Crea una cena para repartir los gastos entre quienes se quedan a comer." : "Primero agrega jugadores en la sección Jugadores.", state.players.length ? "Registrar cena" : "Agregar jugador", state.players.length ? "new-dinner" : "new-player") + "</div>");
+      }
+
       function reportTeam(match, side) {
         const ids = side === "A" ? (match.teamA || []) : (match.teamB || []);
         const pairId = side === "A" ? match.pairAId : match.pairBId;
-        const pair = state.pairs.find(function (item) { return item.id === pairId; }) || findPairForPlayers(ids);
+        const pair = state.pairs.find(function (item) { return item.id === pairId; }) || findPairForPlayers(ids, match.tournamentId);
         const players = ids.map(playerById).filter(Boolean).map(fullName).join(" / ") || "Sin jugadores";
         return (pair ? pairName(pair) : "Pareja " + side) + " (" + players + ")";
       }
@@ -750,29 +867,43 @@
         });
       }
 
-      function playerSelectMarkup(label, name, selectedId) {
+      function playerSelectMarkup(label, name, selectedId, players) {
         return '<div class="field"><label for="' + name + '">' + label + '</label><select id="' + name + '" name="' + name + '" required><option value="">Selecciona un jugador</option>' +
-          state.players.slice().sort(function (a, b) { return fullName(a).localeCompare(fullName(b), "es"); }).map(function (player) {
+          (players || state.players).map(function (player) {
             return '<option value="' + escapeHtml(player.id) + '"' + (player.id === selectedId ? " selected" : "") + ">" + escapeHtml(fullName(player)) + " · " +
               escapeHtml(player.position || "Sin posición") + " · " + escapeHtml(player.category || "Sin categoría") + "</option>";
           }).join("") + "</select></div>";
       }
 
       function showPairForm(id) {
-        if (state.players.length < 2) {
-          toast("Agrega al menos dos jugadores antes de formar una pareja.", true);
-          currentPage = "players";
+        const pair = id ? state.pairs.find(function (item) { return item.id === id; }) : null;
+        if (id && !pair) return;
+        const previousSelect = document.getElementById("pair-tournament-filter");
+        const tournamentId = (pair && pair.tournamentId) || (previousSelect && previousSelect.value) || selectedPairTournamentId ||
+          (state.tournaments[0] && state.tournaments[0].id);
+        const tournament = tournamentById(tournamentId);
+        if (!tournament) {
+          toast("Crea un torneo antes de formar parejas.", true);
+          currentPage = "tournaments";
           render();
           return;
         }
-        const pair = id ? state.pairs.find(function (item) { return item.id === id; }) : null;
-        const p = pair || { firstPlayerId: state.players[0].id, secondPlayerId: state.players[1].id };
-        const body = '<form id="pair-form"><div class="form-grid">' +
-          playerSelectMarkup("Jugador 1", "firstPlayerId", p.firstPlayerId) +
-          playerSelectMarkup("Jugador 2", "secondPlayerId", p.secondPlayerId) +
+        const available = availablePlayersForPair(tournament.id, pair && pair.tournamentId === tournament.id ? pair.id : null);
+        if (available.length < 2) {
+          toast("Se necesitan dos participantes inscriptos que todavía no estén en otra pareja.", true);
+          return;
+        }
+        const selectedFirst = pair && available.some(function (player) { return player.id === pair.firstPlayerId; })
+          ? pair.firstPlayerId : (pair ? "" : available[0].id);
+        const selectedSecond = pair && available.some(function (player) { return player.id === pair.secondPlayerId; })
+          ? pair.secondPlayerId : (pair ? "" : available[1].id);
+        const body = '<form id="pair-form"><div class="form-grid"><div class="field full"><label>Torneo</label><div class="person-name">' +
+          escapeHtml(tournament.name) + '</div><span class="helper">Solo se muestran participantes inscriptos que aún no tienen pareja en este torneo.</span></div>' +
+          playerSelectMarkup("Jugador 1", "firstPlayerId", selectedFirst, available) +
+          playerSelectMarkup("Jugador 2", "secondPlayerId", selectedSecond, available) +
           '</div><div class="form-actions"><button type="button" class="button secondary" data-action="close-modal">Cancelar</button><button class="button" type="submit">' +
           (pair ? "Guardar cambios" : "Crear pareja") + "</button></div></form>";
-        openModal(pair ? "Editar pareja" : "Formar pareja", "La posición aparece junto al nombre para combinar, por ejemplo, un Drive y un Revés.", body);
+        openModal(pair ? "Editar pareja" : "Formar pareja", tournament.name + " · " + formatDate(tournament.date), body);
         document.getElementById("pair-form").addEventListener("submit", function (event) {
           event.preventDefault();
           const data = Object.fromEntries(new FormData(event.currentTarget).entries());
@@ -780,14 +911,21 @@
             toast("Selecciona dos jugadores diferentes.", true);
             return;
           }
+          const currentAvailable = availablePlayersForPair(tournament.id, pair && pair.tournamentId === tournament.id ? pair.id : null);
+          if (!currentAvailable.some(function (player) { return player.id === data.firstPlayerId; }) ||
+              !currentAvailable.some(function (player) { return player.id === data.secondPlayerId; })) {
+            toast("Los dos jugadores deben estar inscriptos y disponibles en este torneo.", true);
+            return;
+          }
           const duplicate = state.pairs.find(function (item) {
-            return item.id !== (pair && pair.id) &&
+            return item.tournamentId === tournament.id && item.id !== (pair && pair.id) &&
               [item.firstPlayerId, item.secondPlayerId].sort().join("|") === [data.firstPlayerId, data.secondPlayerId].sort().join("|");
           });
           if (duplicate) {
             toast("Esa pareja ya está registrada.", true);
             return;
           }
+          data.tournamentId = tournament.id;
           if (pair) Object.assign(pair, data);
           else state.pairs.push(Object.assign({ id: uid() }, data));
           const saved = saveState();
@@ -818,6 +956,76 @@
           closeModal();
           render();
           if (saved) toast(tournament ? "Torneo actualizado." : "Torneo creado.");
+        });
+      }
+
+      function dinnerExpenseRow(expense) {
+        const item = expense || { description: "", amount: "" };
+        return '<div class="dinner-expense-row"><div class="field"><label>Compra</label><input name="expense-description" type="text" maxlength="80" aria-label="Concepto de compra" placeholder="Ej.: Bebidas" value="' +
+          escapeHtml(item.description) + '"></div><div class="field"><label>Importe ($)</label><input name="expense-amount" type="number" min="0.01" step="0.01" aria-label="Importe de la compra" placeholder="0" value="' +
+          escapeHtml(item.amount) + '"></div><button class="icon-button delete" type="button" data-action="remove-dinner-expense" aria-label="Quitar gasto">×</button></div>';
+      }
+
+      function showDinnerForm(id) {
+        if (!state.players.length) {
+          toast("Agrega jugadores antes de registrar una cena.", true);
+          currentPage = "players";
+          render();
+          return;
+        }
+        const dinner = id ? state.dinners.find(function (item) { return item.id === id; }) : null;
+        if (id && !dinner) return;
+        const selectedIds = new Set((dinner && dinner.attendees || []).map(function (entry) { return entry.playerId; }));
+        const attendees = state.players.slice().sort(function (a, b) { return fullName(a).localeCompare(fullName(b), "es"); }).map(function (player) {
+          return '<label class="check-item"><input type="checkbox" name="attendees" value="' + escapeHtml(player.id) + '"' +
+            (selectedIds.has(player.id) ? " checked" : "") + '><span>' + escapeHtml(fullName(player)) + '</span></label>';
+        }).join("");
+        const expenses = dinner && dinner.expenses && dinner.expenses.length ? dinner.expenses : [null];
+        const body = '<form id="dinner-form"><div class="form-grid"><div class="field full"><label for="dinner-date">Fecha</label><input id="dinner-date" name="date" type="date" value="' +
+          escapeHtml(dinner ? dinner.date : todayISO()) + '" required></div><div class="field full"><label>¿Quiénes se quedan a comer?</label><div class="check-list" role="group" aria-label="Asistentes a la cena">' + attendees +
+          '</div><span class="helper">La lista es independiente de las inscripciones al torneo.</span></div><div class="field full"><div class="panel-heading"><label>Gastos de la cena</label>' +
+          '<button class="button secondary small" type="button" data-action="add-dinner-expense">＋ Agregar gasto</button></div><div class="dinner-expense-list" id="dinner-expense-list">' +
+          expenses.map(dinnerExpenseRow).join("") + '</div><span class="helper">Carga cada compra por separado; el total se divide en partes iguales entre los asistentes. Puedes cargar gastos después desde Editar.</span></div></div>' +
+          '<div class="form-actions"><button type="button" class="button secondary" data-action="close-modal">Cancelar</button><button class="button" type="submit">' +
+          (dinner ? "Guardar cambios" : "Registrar cena") + "</button></div></form>";
+        openModal(dinner ? "Editar cena" : "Nueva cena", "Registra los gastos y selecciona a quienes comparten la comida.", body, true);
+        const form = document.getElementById("dinner-form");
+        form.addEventListener("submit", function (event) {
+          event.preventDefault();
+          const formData = new FormData(form);
+          const attendeeIds = formData.getAll("attendees");
+          if (!attendeeIds.length) {
+            toast("Selecciona al menos un asistente para repartir los gastos.", true);
+            return;
+          }
+          const expenseRows = Array.from(form.querySelectorAll(".dinner-expense-row"));
+          const savedExpenses = [];
+          for (const row of expenseRows) {
+            const description = row.querySelector('[name="expense-description"]').value.trim();
+            const amountValue = row.querySelector('[name="expense-amount"]').value;
+            if (!description && !amountValue) continue;
+            const amount = Number(amountValue);
+            if (!description || !Number.isFinite(amount) || amount <= 0) {
+              toast("Completa el concepto y un importe mayor que cero para cada gasto.", true);
+              return;
+            }
+            savedExpenses.push({ description: description, amount: Math.round(amount * 100) / 100 });
+          }
+          const previousAttendees = dinner ? dinner.attendees || [] : [];
+          const paidByPlayer = new Map(previousAttendees.map(function (entry) { return [entry.playerId, !!entry.paid]; }));
+          const data = {
+            date: formData.get("date"),
+            expenses: savedExpenses,
+            attendees: attendeeIds.map(function (playerId) {
+              return { playerId: playerId, paid: paidByPlayer.get(playerId) || false };
+            })
+          };
+          if (dinner) Object.assign(dinner, data);
+          else state.dinners.push(Object.assign({ id: uid() }, data));
+          const saved = saveState();
+          closeModal();
+          render();
+          if (saved) toast(dinner ? "Cena actualizada." : "Cena registrada.");
         });
       }
 
@@ -859,6 +1067,30 @@
         });
       }
 
+      function showTournamentPayments(id) {
+        const tournament = tournamentById(id);
+        if (!tournament) return;
+        const entries = tournament.entries || [];
+        const fee = Number(tournament.fee) || 0;
+        const paid = entries.filter(function (entry) { return entry.paid; }).length;
+        const enrolledHtml = entries.map(function (entry) {
+          const player = playerById(entry.playerId);
+          if (!player) return "";
+          const status = fee ? (entry.paid ? "Pagado" : "Pendiente") : "Gratis";
+          return '<div class="activity-item"><div class="avatar">' + escapeHtml(initials(player)) + '</div><div class="activity-copy"><div class="activity-title">' +
+            escapeHtml(fullName(player)) + '</div><div class="activity-meta">' + (fee ? "Debe " + currency(fee) : "Sin importe") + '</div></div><span class="pill ' +
+            (entry.paid || !fee ? "paid" : "unpaid") + '">' + status + '</span>' +
+            (fee ? '<button class="icon-button" data-action="toggle-payment" data-view="payments" data-id="' + escapeHtml(player.id) + '" data-tournament="' +
+              escapeHtml(tournament.id) + '">' + (entry.paid ? "Desmarcar" : "Marcar pago") + '</button>' : "") + '</div>';
+        }).join("");
+        const body = entries.length
+          ? '<div class="history-section"><div class="stat-top"><span>Inscripción / turno por jugador</span><strong style="color:var(--text)">' +
+            (fee ? currency(fee) : "Gratis") + '</strong></div><div class="history-section"><h3>Pagos · ' + paid + "/" + entries.length + '</h3><div class="activity-list">' +
+            (enrolledHtml || '<div class="no-data">No se encontraron los jugadores inscriptos.</div>') + '</div></div></div>'
+          : emptyState("$", "Todavía no hay inscriptos", "Agrega jugadores al torneo antes de registrar sus pagos.", "Ir a inscripciones", "manage-entries");
+        openModal("Pagos de inscripción / turno", tournament.name + " · " + formatDate(tournament.date), body, true);
+      }
+
       function showMatchForm(id) {
         if (!state.players.length) {
           toast("Agrega jugadores antes de programar un partido.", true);
@@ -868,22 +1100,30 @@
           toast("Crea un torneo antes de programar un partido.", true);
           return;
         }
-        const availablePairs = state.pairs.filter(function (pair) { return pairPlayers(pair).length === 2; });
+        const match = id ? state.matches.find(function (item) { return item.id === id; }) : null;
+        const m = match || { tournamentId: state.tournaments[0].id, date: todayISO(), round: "", courtNumber: 1, setCount: 3, status: "Programado", teamA: [], teamB: [], sets: [] };
+        let availablePairs = pairsForTournament(m.tournamentId);
         if (availablePairs.length < 2) {
-          toast("Registra al menos dos parejas para enfrentarlas en un partido.", true);
+          toast("Registra al menos dos parejas de participantes inscriptos en este torneo.", true);
+          selectedPairTournamentId = m.tournamentId;
           currentPage = "pairs";
           render();
           return;
         }
-        const match = id ? state.matches.find(function (item) { return item.id === id; }) : null;
-        const m = match || { tournamentId: state.tournaments[0].id, date: todayISO(), round: "", courtNumber: 1, setCount: 3, status: "Programado", teamA: [], teamB: [], sets: [] };
         const tournamentSelect = '<div class="field"><label for="tournamentId">Torneo</label><select id="tournamentId" name="tournamentId" required>' +
           state.tournaments.map(function (tournament) {
             return '<option value="' + escapeHtml(tournament.id) + '"' + (tournament.id === m.tournamentId ? " selected" : "") + ">" + escapeHtml(tournament.name) + "</option>";
           }).join("") + "</select></div>";
-        const currentPairA = match && findPairForPlayers(match.teamA || []);
-        const currentPairB = match && findPairForPlayers(match.teamB || []);
+        const findAvailablePairForPlayers = function (playerIds) {
+          const selected = (playerIds || []).slice().sort().join("|");
+          return availablePairs.find(function (pair) {
+            return [pair.firstPlayerId, pair.secondPlayerId].sort().join("|") === selected;
+          }) || null;
+        };
+        let currentPairA = match && (availablePairs.find(function (pair) { return pair.id === match.pairAId; }) || findAvailablePairForPlayers(match.teamA));
+        let currentPairB = match && (availablePairs.find(function (pair) { return pair.id === match.pairBId; }) || findAvailablePairForPlayers(match.teamB));
         const setCount = Math.min(3, Math.max(1, Number(m.setCount) || ((m.sets || []).length || 3)));
+        const matchStatus = m.status === "Finalizado" ? "Finalizado" : "Programado";
         let scoreDraft = Array.from({ length: 3 }, function (_, index) {
           return (m.sets || [])[index] || { a: "", b: "" };
         });
@@ -908,7 +1148,9 @@
           tournamentSelect +
           field("Fecha", "date", m.date, "date", true) + field("Ronda", "round", m.round, "text", false, "Ej.: Semifinal") +
           '<div class="field"><label for="courtNumber">Número de cancha</label><input id="courtNumber" name="courtNumber" type="number" min="1" step="1" value="' + escapeHtml(match ? (m.courtNumber || "") : m.courtNumber) + '" required></div>' +
-          selectField("Estado", "status", m.status || "Programado", ["Programado", "Finalizado"]) +
+          '<div class="field"><label>Estado</label><input id="match-status" name="status" type="hidden" value="' + matchStatus + '"><div class="status-options" role="group" aria-label="Estado del partido">' +
+          '<button type="button" class="status-button' + (matchStatus === "Programado" ? " selected" : "") + '" data-status="Programado" aria-pressed="' + (matchStatus === "Programado") + '">Programado</button>' +
+          '<button type="button" class="status-button' + (matchStatus === "Finalizado" ? " selected" : "") + '" data-status="Finalizado" aria-pressed="' + (matchStatus === "Finalizado") + '">Finalizado</button></div></div>' +
           selectField("Cantidad de sets", "setCount", String(setCount), ["1", "2", "3"]) + '</div><div class="team-grid" style="margin-top:17px">' +
           pairSelect("A", "ENFRENTA PAREJA A", currentPairA) + pairSelect("B", "ENFRENTA PAREJA B", currentPairB) +
           '</div>' + (match && (!currentPairA || !currentPairB) ? '<p class="helper">Este partido no coincide con dos parejas guardadas. Selecciona las parejas registradas para actualizarlo.</p>' : "") +
@@ -917,6 +1159,37 @@
           (match ? "Guardar cambios" : "Guardar partido") + "</button></div></form>";
         openModal(match ? "Editar partido" : "Nuevo partido", "Selecciona las parejas y registra el marcador.", body, true);
         const matchForm = document.getElementById("match-form");
+        let selectedTournamentId = m.tournamentId;
+        matchForm.addEventListener("click", function (event) {
+          const button = event.target.closest("[data-status]");
+          if (!button) return;
+          matchForm.elements.status.value = button.dataset.status;
+          matchForm.querySelectorAll("[data-status]").forEach(function (option) {
+            const selected = option.dataset.status === button.dataset.status;
+            option.classList.toggle("selected", selected);
+            option.setAttribute("aria-pressed", String(selected));
+          });
+        });
+        matchForm.elements.tournamentId.addEventListener("change", function (event) {
+          const nextPairs = pairsForTournament(event.target.value);
+          if (nextPairs.length < 2) {
+            toast("Ese torneo necesita al menos dos parejas para programar un partido.", true);
+            event.target.value = selectedTournamentId;
+            return;
+          }
+          selectedTournamentId = event.target.value;
+          availablePairs = nextPairs;
+          currentPairA = null;
+          currentPairB = null;
+          matchForm.querySelector(".team-grid").innerHTML =
+            pairSelect("A", "ENFRENTA PAREJA A", currentPairA) + pairSelect("B", "ENFRENTA PAREJA B", currentPairB);
+        });
+        matchForm.addEventListener("change", function (event) {
+          if (event.target.name !== "pairA" && event.target.name !== "pairB") return;
+          const pair = availablePairs.find(function (item) { return item.id === event.target.value; });
+          const details = event.target.closest(".team-box").querySelector(".pair-players");
+          details.textContent = pair ? pairPlayers(pair).map(playerLabelWithPosition).join("  +  ") : "Elige la pareja que jugará este lado.";
+        });
         matchForm.elements.setCount.addEventListener("change", function (event) {
           scoreDraft = Array.from({ length: 3 }, function (_, index) {
             const scoreA = matchForm.elements["setA" + index];
@@ -1049,10 +1322,13 @@
 
       function deletePlayer(id) {
         const player = playerById(id);
-        if (!player || !window.confirm("¿Eliminar a " + fullName(player) + "? Se quitará también de las inscripciones y partidos registrados.")) return;
+        if (!player || !window.confirm("¿Eliminar a " + fullName(player) + "? Se quitará también de las inscripciones, partidos y cenas registradas.")) return;
         state.players = state.players.filter(function (item) { return item.id !== id; });
         state.tournaments.forEach(function (tournament) {
           tournament.entries = (tournament.entries || []).filter(function (entry) { return entry.playerId !== id; });
+        });
+        state.dinners.forEach(function (dinner) {
+          dinner.attendees = (dinner.attendees || []).filter(function (entry) { return entry.playerId !== id; });
         });
         state.pairs = state.pairs.filter(function (pair) {
           return pair.firstPlayerId !== id && pair.secondPlayerId !== id;
@@ -1084,23 +1360,64 @@
         if (action === "new-tournament") showTournamentForm();
         if (action === "edit-tournament") showTournamentForm(id);
         if (action === "manage-entries") showEntries(id);
+        if (action === "manage-tournament-payments") showTournamentPayments(id);
+        if (action === "new-dinner") showDinnerForm();
+        if (action === "edit-dinner") showDinnerForm(id);
+        if (action === "add-dinner-expense") {
+          const expenseList = document.getElementById("dinner-expense-list");
+          if (expenseList) expenseList.insertAdjacentHTML("beforeend", dinnerExpenseRow());
+        }
+        if (action === "remove-dinner-expense") {
+          const row = element.closest(".dinner-expense-row");
+          if (row) row.remove();
+        }
+        if (action === "toggle-dinner-payment") {
+          const dinner = state.dinners.find(function (item) { return item.id === element.dataset.dinner; });
+          const attendee = dinner && (dinner.attendees || []).find(function (entry) { return entry.playerId === id; });
+          if (attendee) {
+            attendee.paid = !attendee.paid;
+            const saved = saveState();
+            render();
+            if (saved) toast(attendee.paid ? "Pago de la cena registrado." : "Pago de la cena marcado como pendiente.");
+          }
+        }
+        if (action === "delete-dinner") {
+          const dinner = state.dinners.find(function (item) { return item.id === id; });
+          if (dinner && window.confirm("¿Eliminar la cena del " + formatDate(dinner.date) + "?")) {
+            state.dinners = state.dinners.filter(function (item) { return item.id !== id; });
+            const saved = saveState();
+            render();
+            if (saved) toast("Cena eliminada.");
+          }
+        }
         if (action === "delete-tournament") {
           const tournament = tournamentById(id);
-          if (tournament && window.confirm('¿Eliminar el torneo "' + tournament.name + '" y sus partidos asociados?')) {
+          if (tournament && window.confirm('¿Eliminar el torneo "' + tournament.name + '" y sus parejas y partidos asociados?')) {
             state.tournaments = state.tournaments.filter(function (item) { return item.id !== id; });
             state.matches = state.matches.filter(function (match) { return match.tournamentId !== id; });
+            state.pairs = state.pairs.filter(function (pair) { return pair.tournamentId !== id; });
             const saved = saveState(); render(); if (saved) toast("Torneo eliminado.");
           }
         }
         if (action === "toggle-payment") {
           const tournament = tournamentById(element.dataset.tournament);
           const entry = tournament && (tournament.entries || []).find(function (item) { return item.playerId === id; });
-          if (entry) { entry.paid = !entry.paid; const saved = saveState(); showEntries(tournament.id); render(); if (saved) toast(entry.paid ? "Pago registrado." : "Pago marcado como pendiente."); }
+          if (entry) {
+            entry.paid = !entry.paid;
+            const saved = saveState();
+            if (element.dataset.view === "payments") showTournamentPayments(tournament.id);
+            else showEntries(tournament.id);
+            render();
+            if (saved) toast(entry.paid ? "Pago registrado." : "Pago marcado como pendiente.");
+          }
         }
         if (action === "remove-entry") {
           const tournament = tournamentById(element.dataset.tournament);
           if (tournament && window.confirm("¿Quitar este jugador del torneo?")) {
             tournament.entries = (tournament.entries || []).filter(function (entry) { return entry.playerId !== id; });
+            state.pairs = state.pairs.filter(function (pair) {
+              return pair.tournamentId !== tournament.id || (pair.firstPlayerId !== id && pair.secondPlayerId !== id);
+            });
             const saved = saveState(); showEntries(tournament.id); render(); if (saved) toast("Inscripción eliminada.");
           }
         }
@@ -1140,6 +1457,10 @@
       });
 
       document.addEventListener("change", function (event) {
+        if (event.target.id === "pair-tournament-filter") {
+          document.getElementById("content").innerHTML = renderPairs(event.target.value);
+          return;
+        }
         if (event.target.id === "summary-tournament-select") {
           document.getElementById("content").innerHTML = renderTournamentSummary(event.target.value);
           return;
