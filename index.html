@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101812">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -36,7 +36,7 @@
     }
     button, input, select, textarea { font: inherit; }
     button { cursor: pointer; }
-    .app { min-height: 100vh; }
+    .app { min-height: 100vh; min-height: 100dvh; }
     .sidebar {
       position: fixed;
       inset: 0 auto 0 0;
@@ -83,7 +83,7 @@
     .sidebar-bottom { margin-top: auto; padding: 15px 11px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
     .local-badge { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; color: #d3dfd1; font-weight: 650; }
     .local-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
-    main { min-height: 100vh; margin-left: 248px; }
+    main { min-height: 100vh; min-height: 100dvh; margin-left: 248px; }
     .topbar {
       display: flex;
       min-height: 76px;
@@ -203,8 +203,8 @@
     .empty p { margin: 0; font-size: 12px; }
     .filters { display: flex; gap: 9px; }
     .filters select { width: auto; min-width: 145px; }
-    .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto; padding: 20px; background: #080d09c9; }
-    .modal { width: min(540px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid #35443a; border-radius: 18px; background: #18221b; box-shadow: 0 25px 90px #0008; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto; padding: calc(20px + env(safe-area-inset-top, 0px)) calc(20px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px)); background: #080d09c9; }
+    .modal { width: min(540px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y: auto; -webkit-overflow-scrolling: touch; border: 1px solid #35443a; border-radius: 18px; background: #18221b; box-shadow: 0 25px 90px #0008; }
     .modal.wide { width: min(680px, 100%); }
     .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 24px 17px; border-bottom: 1px solid var(--line); }
     .modal-header h2 { margin: 0; font-size: 19px; letter-spacing: -.4px; }
@@ -234,7 +234,7 @@
     .history-meta { color: var(--muted); font-size: 10px; }
     .report-text { margin: 0; color: #e2e9df; font: inherit; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
     .report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 20; max-width: min(420px, calc(100vw - 32px)); padding: 12px 17px; border: 1px solid #4d633b; border-radius: 11px; background: #243220; color: #e4f0d7; box-shadow: 0 10px 35px #0005; font-size: 12px; animation: appear .2s ease-out; }
+    .toast { position: fixed; right: calc(24px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 20; max-width: min(420px, calc(100vw - 32px)); padding: 12px 17px; border: 1px solid #4d633b; border-radius: 11px; background: #243220; color: #e4f0d7; box-shadow: 0 10px 35px #0005; font-size: 12px; animation: appear .2s ease-out; }
     .toast.error { border-color: #824a46; background: #382322; color: #ffd1ce; }
     .no-data { padding: 14px; color: var(--muted); font-size: 12px; text-align: center; }
     @keyframes appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -246,17 +246,18 @@
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 720px) {
-      .sidebar { position: sticky; inset: 0 0 auto; width: 100%; height: auto; padding: 12px 14px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .sidebar { position: sticky; inset: 0 0 auto; width: 100%; height: auto; padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 0; border-right: 0; border-bottom: 1px solid var(--line); }
       .brand { padding: 0 3px 11px; }
       .brand-mark { width: 32px; height: 32px; }
       .brand-name { font-size: 18px; }
       .nav-label, .sidebar-bottom { display: none; }
-      .nav { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 9px; }
-      .nav button { width: auto; flex: 0 0 auto; gap: 7px; padding: 8px 10px; font-size: 12px; }
+      .nav { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 9px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+      .nav::-webkit-scrollbar { display: none; }
+      .nav button { width: auto; min-height: 44px; flex: 0 0 auto; gap: 7px; padding: 8px 10px; font-size: 12px; }
       .nav-icon { font-size: 14px; }
-      main { min-height: calc(100vh - 96px); margin-left: 0; }
+      main { min-height: 100vh; min-height: 100dvh; margin-left: 0; }
       .topbar { min-height: 49px; padding: 0 18px; }
-      .content { padding: 25px 18px 40px; }
+      .content { padding: 25px 18px calc(40px + env(safe-area-inset-bottom, 0px)); }
       .page-heading { align-items: flex-start; }
       .page-heading .button { padding: 8px 11px; font-size: 12px; }
       .dashboard-grid { grid-template-columns: 1fr; }
@@ -270,8 +271,12 @@
       .stat-top { font-size: 10px; }
       .stat-icon { width: 27px; height: 27px; }
       .page-heading { gap: 10px; }
+      .page-heading > div { min-width: 0; }
       .subtitle { max-width: 230px; font-size: 12px; }
       .page-heading .button { white-space: nowrap; }
+      .button, .icon-button, .close-button, .status-button { min-height: 44px; }
+      .close-button { width: 44px; }
+      input, select, textarea { font-size: 16px; }
       .toolbar { flex-wrap: wrap; }
       .toolbar > .button { flex: 1; }
       .filters { width: 100%; }
