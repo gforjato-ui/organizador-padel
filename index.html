@@ -1,0 +1,1168 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101812">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Cancha">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <title>Torneos de Padel — Gestión de pádel</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101812;
+      --panel: #18221b;
+      --panel-raised: #1d2921;
+      --line: #2a382e;
+      --muted: #9aa79d;
+      --text: #f3f5ef;
+      --green: #c8f169;
+      --green-dark: #91ba3d;
+      --orange: #f2a66b;
+      --red: #ff827c;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app { min-height: 100vh; }
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 3;
+      display: flex;
+      width: 248px;
+      flex-direction: column;
+      padding: 27px 18px 20px;
+      border-right: 1px solid var(--line);
+      background: #141d16;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 38px; }
+    .brand-mark {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--green);
+      color: #172010;
+      font-size: 19px;
+      font-weight: 900;
+    }
+    .brand-name { font-size: 20px; font-weight: 750; letter-spacing: -.7px; }
+    .brand-name span { color: var(--green); }
+    .nav-label { padding: 0 12px 10px; color: #758178; font-size: 10px; font-weight: 750; letter-spacing: 1.4px; text-transform: uppercase; }
+    .nav { display: grid; gap: 5px; }
+    .nav button {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      width: 100%;
+      padding: 11px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: #aeb8af;
+      text-align: left;
+      transition: background .15s, color .15s;
+    }
+    .nav button:hover { background: #202b23; color: var(--text); }
+    .nav button.active { background: #273424; color: var(--green); }
+    .nav-icon { width: 20px; font-size: 17px; text-align: center; }
+    .sidebar-bottom { margin-top: auto; padding: 15px 11px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    .local-badge { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; color: #d3dfd1; font-weight: 650; }
+    .local-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    main { min-height: 100vh; margin-left: 248px; }
+    .topbar {
+      display: flex;
+      min-height: 76px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 42px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(16, 24, 18, .8);
+    }
+    .breadcrumb { color: var(--muted); font-size: 13px; }
+    .top-date { color: #c6d0c7; font-size: 13px; }
+    .content { width: min(1240px, 100%); margin: 0 auto; padding: 38px 42px 60px; }
+    .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 28px; }
+    .eyebrow { margin-bottom: 7px; color: var(--green); font-size: 11px; font-weight: 750; letter-spacing: 1.5px; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(26px, 3vw, 34px); letter-spacing: -1.2px; line-height: 1.15; }
+    .subtitle { margin: 8px 0 0; color: var(--muted); }
+    .button {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 15px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: var(--green);
+      color: #1a2415;
+      font-weight: 750;
+      transition: filter .15s, transform .15s;
+    }
+    .button:hover { filter: brightness(1.06); transform: translateY(-1px); }
+    .button.secondary { border-color: var(--line); background: var(--panel-raised); color: var(--text); }
+    .button.danger { border-color: #59312f; background: #382322; color: #ffb0aa; }
+    .button.small { min-height: 32px; padding: 6px 10px; font-size: 12px; }
+    .button:disabled { cursor: not-allowed; opacity: .48; transform: none; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 22px; }
+    .stat-card, .panel, .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+    }
+    .stat-card { min-height: 125px; padding: 19px 20px; }
+    .stat-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; }
+    .stat-icon { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px; background: #293529; color: var(--green); font-size: 15px; }
+    .stat-number { margin-top: 9px; font-size: 28px; font-weight: 750; letter-spacing: -.8px; }
+    .stat-note { color: var(--muted); font-size: 11px; }
+    .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(250px, .8fr); gap: 16px; }
+    .panel { padding: 21px; }
+    .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .panel-heading h2 { margin: 0; font-size: 16px; letter-spacing: -.3px; }
+    .text-link { padding: 0; border: 0; background: transparent; color: var(--green); font-size: 12px; font-weight: 700; }
+    .activity-list { display: grid; }
+    .activity-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+    .activity-item:first-child { border-top: 0; }
+    .activity-ball { display: grid; width: 35px; height: 35px; flex: 0 0 35px; place-items: center; border-radius: 11px; background: #293529; color: var(--green); }
+    .activity-copy { min-width: 0; flex: 1; }
+    .activity-title { overflow: hidden; font-size: 13px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .activity-meta { color: var(--muted); font-size: 11px; }
+    .activity-result { color: #d4dfd4; font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .quick-actions { display: grid; gap: 10px; }
+    .quick-action {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #1b261e;
+      color: var(--text);
+      text-align: left;
+    }
+    .quick-action:hover { border-color: #58674b; }
+    .quick-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: #293529; color: var(--green); font-size: 17px; }
+    .quick-action strong { display: block; font-size: 12px; }
+    .quick-action span:last-child { color: var(--muted); font-size: 11px; }
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
+    .search { position: relative; flex: 1; }
+    .search input { width: 100%; padding-left: 37px; }
+    .search-icon { position: absolute; top: 9px; left: 13px; color: var(--muted); }
+    input, select, textarea {
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 11px;
+      border: 1px solid #344238;
+      border-radius: 9px;
+      outline: none;
+      background: #131c16;
+      color: var(--text);
+    }
+    textarea { min-height: 78px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: var(--green-dark); box-shadow: 0 0 0 3px #91ba3d20; }
+    input::placeholder, textarea::placeholder { color: #758178; }
+    select:disabled { opacity: .65; }
+    .table-wrap { overflow: hidden; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th { padding: 12px 16px; background: #1b261e; color: #9eaa9f; font-size: 10px; font-weight: 750; letter-spacing: .7px; text-transform: uppercase; white-space: nowrap; }
+    td { padding: 13px 16px; border-top: 1px solid var(--line); color: #dbe2d9; font-size: 12px; vertical-align: middle; }
+    tbody tr:hover { background: #1c2820; }
+    .person-cell { display: flex; align-items: center; gap: 10px; min-width: 160px; }
+    .avatar { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; border: 1px solid #3b4c37; border-radius: 50%; background: #2b3829; color: var(--green); font-size: 11px; font-weight: 800; }
+    .person-name { color: var(--text); font-weight: 680; }
+    .person-sub { color: var(--muted); font-size: 10px; }
+    .pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; border-radius: 99px; background: #293529; color: #d6e5bb; font-size: 10px; font-weight: 700; white-space: nowrap; }
+    .pill.paid { background: #253729; color: #c8f169; }
+    .pill.unpaid { background: #3a2a22; color: #f4bc8c; }
+    .pill.done { background: #29352d; color: #b7c8bb; }
+    .pill.scheduled { background: #26333a; color: #acd8eb; }
+    .points-value { color: var(--green); font-size: 14px; font-weight: 800; }
+    .row-actions { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .icon-button { min-width: 30px; min-height: 30px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: #202b23; color: #dce5dc; font-size: 11px; }
+    .icon-button:hover { border-color: #607258; color: var(--green); }
+    .icon-button.delete:hover { border-color: #824a46; color: var(--red); }
+    .empty { padding: 45px 20px; color: var(--muted); text-align: center; }
+    .empty-icon { margin-bottom: 10px; color: #667366; font-size: 29px; }
+    .empty strong { display: block; margin-bottom: 4px; color: #dce4da; font-size: 14px; }
+    .empty p { margin: 0; font-size: 12px; }
+    .filters { display: flex; gap: 9px; }
+    .filters select { width: auto; min-width: 145px; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; overflow-y: auto; padding: 20px; background: #080d09c9; }
+    .modal { width: min(540px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; border: 1px solid #35443a; border-radius: 18px; background: #18221b; box-shadow: 0 25px 90px #0008; }
+    .modal.wide { width: min(680px, 100%); }
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 22px 24px 17px; border-bottom: 1px solid var(--line); }
+    .modal-header h2 { margin: 0; font-size: 19px; letter-spacing: -.4px; }
+    .modal-header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .close-button { width: 31px; height: 31px; border: 1px solid var(--line); border-radius: 9px; background: #202b23; color: #cdd6ce; font-size: 18px; }
+    .modal-body { padding: 20px 24px 24px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .field { display: grid; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: #d8e0d8; font-size: 11px; font-weight: 700; }
+    .field label .optional { color: var(--muted); font-weight: 450; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 21px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .helper { color: var(--muted); font-size: 10px; }
+    .check-list { display: grid; max-height: 230px; gap: 7px; overflow-y: auto; padding: 3px; }
+    .check-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: #141d16; font-size: 12px; }
+    .check-item input { width: 16px; min-height: 16px; height: 16px; margin: 0; accent-color: var(--green); }
+    .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .team-box { display: grid; gap: 9px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: #141d16; }
+    .team-title { display: flex; align-items: center; justify-content: space-between; color: var(--green); font-size: 11px; font-weight: 750; }
+    .pair-players { color: #e0e8dc; font-size: 12px; font-weight: 650; }
+    .score-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .history-section + .history-section { margin-top: 23px; }
+    .history-section h3 { margin: 0 0 10px; color: var(--muted); font-size: 11px; letter-spacing: .7px; text-transform: uppercase; }
+    .history-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 10px; background: #141d16; }
+    .history-card + .history-card { margin-top: 7px; }
+    .history-title { font-size: 12px; font-weight: 700; }
+    .history-meta { color: var(--muted); font-size: 10px; }
+    .report-text { margin: 0; color: #e2e9df; font: inherit; line-height: 1.75; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .report-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 20; max-width: min(420px, calc(100vw - 32px)); padding: 12px 17px; border: 1px solid #4d633b; border-radius: 11px; background: #243220; color: #e4f0d7; box-shadow: 0 10px 35px #0005; font-size: 12px; animation: appear .2s ease-out; }
+    .toast.error { border-color: #824a46; background: #382322; color: #ffd1ce; }
+    .no-data { padding: 14px; color: var(--muted); font-size: 12px; text-align: center; }
+    @keyframes appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 1000px) {
+      .sidebar { width: 210px; }
+      main { margin-left: 210px; }
+      .content { padding-right: 26px; padding-left: 26px; }
+      .topbar { padding-right: 26px; padding-left: 26px; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .sidebar { position: sticky; inset: 0 0 auto; width: 100%; height: auto; padding: 12px 14px 0; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { padding: 0 3px 11px; }
+      .brand-mark { width: 32px; height: 32px; }
+      .brand-name { font-size: 18px; }
+      .nav-label, .sidebar-bottom { display: none; }
+      .nav { display: flex; gap: 3px; overflow-x: auto; padding-bottom: 9px; }
+      .nav button { width: auto; flex: 0 0 auto; gap: 7px; padding: 8px 10px; font-size: 12px; }
+      .nav-icon { font-size: 14px; }
+      main { min-height: calc(100vh - 96px); margin-left: 0; }
+      .topbar { min-height: 49px; padding: 0 18px; }
+      .content { padding: 25px 18px 40px; }
+      .page-heading { align-items: flex-start; }
+      .page-heading .button { padding: 8px 11px; font-size: 12px; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .filters { flex: 1; }
+      .filters select { min-width: 0; flex: 1; }
+    }
+    @media (max-width: 480px) {
+      .stats { gap: 9px; }
+      .stat-card { min-height: 108px; padding: 13px; }
+      .stat-number { font-size: 24px; }
+      .stat-top { font-size: 10px; }
+      .stat-icon { width: 27px; height: 27px; }
+      .page-heading { gap: 10px; }
+      .subtitle { max-width: 230px; font-size: 12px; }
+      .page-heading .button { white-space: nowrap; }
+      .toolbar { flex-wrap: wrap; }
+      .toolbar > .button { flex: 1; }
+      .filters { width: 100%; }
+      .form-grid, .team-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .modal-header { padding-right: 18px; padding-left: 18px; }
+      .modal-body { padding: 17px 18px 20px; }
+      .panel { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">C</div><div class="brand-name">cancha<span>.</span></div></div>
+      <div class="nav-label">Organizaci&oacute;n</div>
+      <nav class="nav" aria-label="Navegación principal">
+        <button class="active" data-page="dashboard"><span class="nav-icon">⌂</span> Resumen</button>
+        <button data-page="players"><span class="nav-icon">♙</span> Jugadores</button>
+        <button data-page="tournaments"><span class="nav-icon">◈</span> Torneos</button>
+        <button data-page="pairs"><span class="nav-icon">♧</span> Parejas</button>
+        <button data-page="matches"><span class="nav-icon">⊞</span> Partidos</button>
+        <button data-page="tournament-summary"><span class="nav-icon">↗</span> Resumen del torneo</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="local-badge"><span class="local-dot"></span> Datos guardados</div>
+        Solo en este dispositivo
+      </div>
+    </aside>
+    <main>
+      <header class="topbar"><div class="breadcrumb">Club / <span id="current-section">Resumen</span></div><div class="top-date" id="today"></div></header>
+      <div class="content" id="content"></div>
+    </main>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <script>
+    (function () {
+      "use strict";
+
+      const STORAGE_KEY = "cancha-padel-manager-v1";
+      const PAGE_NAMES = { dashboard: "Resumen", players: "Jugadores", tournaments: "Torneos", pairs: "Parejas", matches: "Partidos", "tournament-summary": "Resumen del torneo" };
+      let loadError = null;
+      let state = loadState();
+      let currentPage = "dashboard";
+      let toastTimer;
+
+      function loadState() {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) return { players: [], pairs: [], tournaments: [], matches: [] };
+          const parsed = JSON.parse(saved);
+          return {
+            players: Array.isArray(parsed.players) ? parsed.players : [],
+            pairs: Array.isArray(parsed.pairs) ? parsed.pairs : [],
+            tournaments: Array.isArray(parsed.tournaments) ? parsed.tournaments : [],
+            matches: Array.isArray(parsed.matches) ? parsed.matches : []
+          };
+        } catch (error) {
+          console.error("No se pudieron cargar los datos guardados.", error);
+          loadError = error;
+          return { players: [], pairs: [], tournaments: [], matches: [] };
+        }
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (error) {
+          console.error("No se pudieron guardar los datos.", error);
+          showToast("No se pudieron guardar los cambios. Comprueba el espacio disponible.", true);
+          return false;
+        }
+        return true;
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char];
+        });
+      }
+
+      function uid() {
+        return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      }
+
+      function formatDate(value) {
+        if (!value) return "Sin fecha";
+        const date = new Date(value + "T12:00:00");
+        return Number.isNaN(date.getTime()) ? "Sin fecha" : date.toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+      }
+
+      function setCountLabel(match) {
+        const count = Math.max(Number(match.setCount) || 0, (match.sets || []).length);
+        return count ? count + (count === 1 ? " set" : " sets") : "";
+      }
+
+      function setWinner(set) {
+        if (!set || set.a === "" || set.b === "") return null;
+        const scoreA = Number(set.a);
+        const scoreB = Number(set.b);
+        if (!Number.isInteger(scoreA) || !Number.isInteger(scoreB) || scoreA < 0 || scoreB < 0 || scoreA > 6 || scoreB > 6) return null;
+        if (scoreA === 6 && scoreB < 6) return "A";
+        if (scoreB === 6 && scoreA < 6) return "B";
+        return null;
+      }
+
+      function matchOutcome(match) {
+        if (!match || match.status !== "Finalizado") return null;
+        const sets = match.sets || [];
+        if (!sets.length || sets.some(function (set) { return !setWinner(set); })) return null;
+        const winsA = sets.filter(function (set) { return setWinner(set) === "A"; }).length;
+        const winsB = sets.length - winsA;
+        if (winsA === winsB) return null;
+        return winsA > winsB ? "A" : "B";
+      }
+
+      function pointsForPlayerInMatch(playerId, match) {
+        const outcome = matchOutcome(match);
+        if (!outcome) return null;
+        const inA = (match.teamA || []).includes(playerId);
+        const inB = (match.teamB || []).includes(playerId);
+        if (inA === inB) return null;
+        return outcome === (inA ? "A" : "B") ? 2 : 1;
+      }
+
+      function playerPoints(playerId) {
+        return state.matches.reduce(function (total, match) {
+          const points = pointsForPlayerInMatch(playerId, match);
+          return total + (points == null ? 0 : points);
+        }, 0);
+      }
+
+      function todayISO() {
+        const now = new Date();
+        return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+      }
+
+      function currency(value) {
+        return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(Number(value) || 0);
+      }
+
+      function initials(player) {
+        return (player.firstName.slice(0, 1) + player.lastName.slice(0, 1)).toUpperCase();
+      }
+
+      function fullName(player) {
+        return (player.firstName + " " + player.lastName).trim();
+      }
+
+      function playerLabelWithPosition(player) {
+        return fullName(player) + " · " + (player.position || "Sin posición");
+      }
+
+      function playerById(id) {
+        return state.players.find(function (player) { return player.id === id; });
+      }
+
+      function tournamentById(id) {
+        return state.tournaments.find(function (tournament) { return tournament.id === id; });
+      }
+
+      function toast(message, error) {
+        const root = document.getElementById("toast-root");
+        root.innerHTML = '<div class="toast' + (error ? " error" : "") + '">' + escapeHtml(message) + "</div>";
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { root.innerHTML = ""; }, 3200);
+      }
+      const showToast = toast;
+
+      function pageHeading(eyebrow, title, description, buttonLabel, action) {
+        return '<div class="page-heading"><div><div class="eyebrow">' + eyebrow + '</div><h1>' + title + '</h1><p class="subtitle">' + description + '</p></div>' +
+          (buttonLabel ? '<button class="button" data-action="' + action + '">＋ ' + buttonLabel + "</button>" : "") + "</div>";
+      }
+
+      function emptyState(icon, title, message, buttonLabel, action) {
+        return '<div class="empty"><div class="empty-icon">' + icon + '</div><strong>' + title + "</strong><p>" + message + "</p>" +
+          (buttonLabel ? '<button class="button small" style="margin-top:15px" data-action="' + action + '">＋ ' + buttonLabel + "</button>" : "") + "</div>";
+      }
+
+      function render() {
+        document.getElementById("current-section").textContent = PAGE_NAMES[currentPage];
+        document.querySelectorAll(".nav button").forEach(function (button) {
+          button.classList.toggle("active", button.dataset.page === currentPage);
+        });
+        const content = document.getElementById("content");
+        if (currentPage === "dashboard") content.innerHTML = renderDashboard();
+        if (currentPage === "players") content.innerHTML = renderPlayers();
+        if (currentPage === "pairs") content.innerHTML = renderPairs();
+        if (currentPage === "tournaments") content.innerHTML = renderTournaments();
+        if (currentPage === "matches") content.innerHTML = renderMatches();
+        if (currentPage === "tournament-summary") content.innerHTML = renderTournamentSummary();
+      }
+
+      function renderDashboard() {
+        const upcoming = state.tournaments.filter(function (item) { return item.status === "Próximo"; }).length;
+        const pending = state.tournaments.reduce(function (total, tournament) {
+          const unpaid = (tournament.entries || []).filter(function (entry) { return !entry.paid; }).length;
+          return total + unpaid * Number(tournament.fee || 0);
+        }, 0);
+        const recent = state.matches.slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); }).slice(0, 5);
+        const recentHtml = recent.length ? recent.map(function (match) {
+          const tournament = tournamentById(match.tournamentId);
+          const score = match.status === "Finalizado" && match.sets && match.sets.length
+            ? match.sets.map(function (set) { return set.a + "-" + set.b; }).join("  ")
+            : match.status;
+          const activityDetails = [formatDate(match.date), match.courtNumber ? "Cancha " + match.courtNumber : "", setCountLabel(match), match.round || ""].filter(Boolean).join(" · ");
+          return '<div class="activity-item"><div class="activity-ball">⊞</div><div class="activity-copy"><div class="activity-title">' +
+            escapeHtml(tournament ? tournament.name : "Partido sin torneo") + '</div><div class="activity-meta">' + escapeHtml(activityDetails) +
+            '</div></div><div class="activity-result">' + escapeHtml(score || "Programado") + "</div></div>";
+        }).join("") : emptyState("⊞", "Todavía no hay partidos", "Cuando registres partidos, aparecerán aquí.", "Crear partido", "new-match");
+        return pageHeading("Tu club, al día", "Resumen", "Todo lo que pasa en tus canchas, en un solo lugar.", "Nuevo torneo", "new-tournament") +
+          '<div class="stats">' +
+          statCard("Jugadores registrados", state.players.length, "En tu base de jugadores", "♙") +
+          statCard("Torneos próximos", upcoming, "Listos para jugar", "◈") +
+          statCard("Partidos registrados", state.matches.length, "En todos los torneos", "⊞") +
+          statCard("Pagos pendientes", currency(pending), "Inscripciones por cobrar", "$") +
+          '</div><div class="dashboard-grid"><section class="panel"><div class="panel-heading"><h2>Actividad reciente</h2><button class="text-link" data-page="matches">Ver partidos →</button></div><div class="activity-list">' +
+          recentHtml + '</div></section><section class="panel"><div class="panel-heading"><h2>Accesos rápidos</h2></div><div class="quick-actions">' +
+          quickAction("♙", "Agregar jugador", "Registra un nuevo jugador", "new-player") +
+          quickAction("♧", "Formar pareja", "Combina dos jugadores para un partido", "new-pair") +
+          quickAction("◈", "Crear torneo", "Configura fechas e inscripciones", "new-tournament") +
+          quickAction("⊞", "Anotar partido", "Carga un resultado o programa un partido", "new-match") +
+          '</div></section></div>';
+      }
+
+      function statCard(label, value, note, icon) {
+        return '<div class="stat-card"><div class="stat-top"><span>' + label + '</span><span class="stat-icon">' + icon + '</span></div><div class="stat-number">' +
+          escapeHtml(value) + '</div><div class="stat-note">' + note + "</div></div>";
+      }
+
+      function quickAction(icon, title, note, action) {
+        return '<button class="quick-action" data-action="' + action + '"><span class="quick-icon">' + icon +
+          '</span><span><strong>' + title + "</strong>" + note + "</span></button>";
+      }
+
+      function renderPlayers(query) {
+        const search = (query || "").trim().toLocaleLowerCase("es");
+        const players = state.players.filter(function (player) {
+          return fullName(player).toLocaleLowerCase("es").includes(search) ||
+            (player.category || "").toLocaleLowerCase("es").includes(search) ||
+            (player.email || "").toLocaleLowerCase("es").includes(search);
+        }).sort(function (a, b) {
+          return playerPoints(b.id) - playerPoints(a.id) || fullName(a).localeCompare(fullName(b), "es");
+        });
+        const rows = players.map(function (player) {
+          return '<tr><td><div class="person-cell"><div class="avatar">' + escapeHtml(initials(player)) + '</div><div><div class="person-name">' +
+            escapeHtml(fullName(player)) + '</div><div class="person-sub">' + escapeHtml(player.email || player.phone || "Sin contacto") + '</div></div></div></td><td>' +
+            '<span class="points-value">' + playerPoints(player.id) + '</span></td><td>' +
+            escapeHtml(player.phone || "—") + '</td><td>' + escapeHtml(player.position || "—") + '</td><td><span class="pill">' + escapeHtml(player.category || "Sin categoría") +
+            '</span></td><td><div class="row-actions"><button class="icon-button" data-action="history-player" data-id="' + player.id + '" title="Ver historial">Historial</button>' +
+            '<button class="icon-button" data-action="edit-player" data-id="' + player.id + '" title="Editar">Editar</button><button class="icon-button delete" data-action="delete-player" data-id="' + player.id + '" title="Eliminar">×</button></div></td></tr>';
+        }).join("");
+        return pageHeading("Tu comunidad", "Jugadores", "Puntos por partido finalizado: victoria +2 y derrota +1. Si los dos primeros sets quedan 1–1, se juega un tercero decisivo.", "Agregar jugador", "new-player") +
+          '<div class="toolbar"><div class="search"><span class="search-icon">⌕</span><input id="player-search" type="search" placeholder="Buscar por nombre, categoría o email…" value="' + escapeHtml(query || "") + '"></div>' +
+          '<span class="helper">' + players.length + (players.length === 1 ? " jugador" : " jugadores") + "</span></div>" +
+          (rows ? '<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Jugador</th><th>Puntos acumulados</th><th>Teléfono</th><th>Posición</th><th>Categoría</th><th>Acciones</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' :
+            emptyState("♙", search ? "No encontramos jugadores" : "Tu lista empieza acá", search ? "Prueba con otro nombre, email o categoría." : "Agrega jugadores para gestionar sus torneos e historial.", search ? "" : "Agregar jugador", search ? "" : "new-player"));
+      }
+
+      function pairPlayers(pair) {
+        return [playerById(pair.firstPlayerId), playerById(pair.secondPlayerId)].filter(Boolean);
+      }
+
+      function pairName(pair) {
+        const index = state.pairs.indexOf(pair);
+        return "Pareja " + (index + 1);
+      }
+
+      function findPairForPlayers(playerIds) {
+        if (!playerIds || playerIds.length !== 2) return null;
+        const selected = playerIds.slice().sort().join("|");
+        return state.pairs.find(function (pair) {
+          return [pair.firstPlayerId, pair.secondPlayerId].sort().join("|") === selected;
+        }) || null;
+      }
+
+      function renderPairs() {
+        const pairs = state.pairs.filter(function (pair) { return pairPlayers(pair).length === 2; });
+        const rows = pairs.map(function (pair) {
+          const players = pairPlayers(pair);
+          return '<tr><td><div class="person-name">' + escapeHtml(pairName(pair)) + '</div>' +
+            '<div class="person-sub">' + escapeHtml(players.map(playerLabelWithPosition).join(" / ")) + '</div>' +
+            '</td><td>' + escapeHtml(players.map(function (player) { return player.category || "Sin categoría"; }).join(" · ")) +
+            '</td><td><div class="row-actions"><button class="icon-button" data-action="edit-pair" data-id="' + pair.id + '">Editar</button>' +
+            '<button class="icon-button delete" data-action="delete-pair" data-id="' + pair.id + '">×</button></div></td></tr>';
+        }).join("");
+        return pageHeading("Combinaciones de cancha", "Parejas", "Forma duplas con tus jugadores y selecciónalas al armar cada partido.", "Formar pareja", "new-pair") +
+          (rows ? '<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Pareja</th><th>Categorías</th><th>Acciones</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' :
+            '<div class="panel">' + emptyState("♧", "Todavía no hay parejas", state.players.length < 2 ? "Registra al menos dos jugadores para formar una pareja." : "Combina dos jugadores; luego podrás enfrentar las parejas en un partido.", state.players.length < 2 ? "Agregar jugador" : "Formar pareja", state.players.length < 2 ? "new-player" : "new-pair") + "</div>");
+      }
+
+      function renderTournaments() {
+        const rows = state.tournaments.slice().sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); }).map(function (tournament) {
+          const entries = tournament.entries || [];
+          const paid = entries.filter(function (entry) { return entry.paid; }).length;
+          const statusClass = tournament.status === "Finalizado" ? "done" : "scheduled";
+          return '<tr><td><div class="person-name">' + escapeHtml(tournament.name) + '</div><div class="person-sub">' + escapeHtml(tournament.category || "Todas las categorías") + '</div></td><td>' +
+            formatDate(tournament.date) + '</td><td>' + escapeHtml(tournament.venue || "—") + '</td><td><span class="pill ' + statusClass + '">' + escapeHtml(tournament.status || "Próximo") +
+            '</span></td><td>' + entries.length + ' <span class="person-sub">jug.</span></td><td>' + (Number(tournament.fee) > 0 ? currency(tournament.fee) : "Gratis") +
+            '</td><td><span class="pill ' + (paid === entries.length && entries.length ? "paid" : "unpaid") + '">' + paid + "/" + entries.length + " pagos</span></td><td><div class=\"row-actions\">" +
+            '<button class="icon-button" data-action="manage-entries" data-id="' + tournament.id + '">Inscripciones</button><button class="icon-button" data-action="edit-tournament" data-id="' + tournament.id + '">Editar</button>' +
+            '<button class="icon-button delete" data-action="delete-tournament" data-id="' + tournament.id + '">×</button></div></td></tr>';
+        }).join("");
+        return pageHeading("Fechas y competencias", "Torneos", "Organiza inscripciones y lleva el control de los pagos.", "Crear torneo", "new-tournament") +
+          (rows ? '<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Torneo</th><th>Fecha</th><th>Sede</th><th>Estado</th><th>Inscritos</th><th>Arancel</th><th>Pagos</th><th>Acciones</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' :
+            '<div class="panel">' + emptyState("◈", "Todavía no hay torneos", "Crea un torneo para inscribir jugadores y registrar pagos.", "Crear torneo", "new-tournament") + "</div>");
+      }
+
+      function renderMatches(selectedFilter) {
+        const tournamentFilter = document.getElementById("match-tournament-filter");
+        const filter = selectedFilter || (tournamentFilter ? tournamentFilter.value : "all");
+        const matches = state.matches.filter(function (match) { return filter === "all" || match.tournamentId === filter; })
+          .slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+        const rows = matches.map(function (match) {
+          const tournament = tournamentById(match.tournamentId);
+          const teamA = (match.teamA || []).map(playerById).filter(Boolean);
+          const teamB = (match.teamB || []).map(playerById).filter(Boolean);
+          const pairA = state.pairs.find(function (pair) { return pair.id === match.pairAId; }) || findPairForPlayers(match.teamA || []);
+          const pairB = state.pairs.find(function (pair) { return pair.id === match.pairBId; }) || findPairForPlayers(match.teamB || []);
+          const teamText = function (team, pair) {
+            const names = team.map(fullName).join(" / ") || "Sin jugadores";
+            return (pair ? pairName(pair) + " · " : "") + names;
+          };
+          const score = (match.sets || []).filter(function (set) { return set.a !== "" && set.b !== ""; }).map(function (set) { return set.a + "-" + set.b; }).join("  ");
+          return '<tr><td>' + formatDate(match.date) + '<div class="person-sub">' + escapeHtml(match.round || "Partido") + '</div></td><td>' +
+            (match.courtNumber ? "Cancha " + escapeHtml(match.courtNumber) : "—") + '</td><td>' + escapeHtml(tournament ? tournament.name : "Sin torneo") +
+            '</td><td>' + escapeHtml(setCountLabel(match) || "—") + '</td><td><div class="person-name">' + escapeHtml(teamText(teamA, pairA)) + '</div><div class="person-sub" style="margin:3px 0">vs.</div><div class="person-name">' + escapeHtml(teamText(teamB, pairB)) +
+            '</div></td><td><span class="pill ' + (match.status === "Finalizado" ? "done" : "scheduled") + '">' + escapeHtml(match.status || "Programado") + '</span></td><td>' +
+            escapeHtml(score || "—") + '</td><td><div class="row-actions"><button class="icon-button" data-action="edit-match" data-id="' + match.id + '">Editar</button>' +
+            '<button class="icon-button delete" data-action="delete-match" data-id="' + match.id + '">×</button></div></td></tr>';
+        }).join("");
+        return pageHeading("En la cancha", "Partidos", "Programa encuentros y registra los resultados de cada fecha.", "Nuevo partido", "new-match") +
+          '<div class="toolbar"><div class="filters"><select id="match-tournament-filter"><option value="all">Todos los torneos</option>' +
+          state.tournaments.map(function (tournament) { return '<option value="' + tournament.id + '">' + escapeHtml(tournament.name) + "</option>"; }).join("") +
+          '</select></div><span class="helper">' + matches.length + (matches.length === 1 ? " partido" : " partidos") + "</span></div>" +
+          (rows ? '<div class="table-wrap"><div class="table-scroll"><table><thead><tr><th>Fecha</th><th>Cancha</th><th>Torneo</th><th>Sets</th><th>Enfrentamiento</th><th>Estado</th><th>Resultado</th><th>Acciones</th></tr></thead><tbody>' + rows + '</tbody></table></div></div>' :
+            '<div class="panel">' + emptyState("⊞", "Todavía no hay partidos", "Programa un partido para empezar a cargar resultados.", "Crear partido", "new-match") + "</div>");
+      }
+
+      function reportTeam(match, side) {
+        const ids = side === "A" ? (match.teamA || []) : (match.teamB || []);
+        const pairId = side === "A" ? match.pairAId : match.pairBId;
+        const pair = state.pairs.find(function (item) { return item.id === pairId; }) || findPairForPlayers(ids);
+        const players = ids.map(playerById).filter(Boolean).map(fullName).join(" / ") || "Sin jugadores";
+        return (pair ? pairName(pair) : "Pareja " + side) + " (" + players + ")";
+      }
+
+      function buildTournamentReport(tournament, matches) {
+        const completed = matches.filter(function (match) { return match.status === "Finalizado"; });
+        const pending = matches.filter(function (match) { return match.status !== "Finalizado"; });
+        const lines = [
+          "🏆 *" + tournament.name + "*",
+          "📅 " + formatDate(tournament.date),
+          ...(tournament.venue ? ["📍 " + tournament.venue] : []),
+          "🏁 Estado: " + (tournament.status || "Próximo"),
+          "",
+          "🎾 *Resultados de partidos (" + completed.length + ")*"
+        ];
+        if (!completed.length) lines.push("Todavía no hay partidos finalizados.");
+        completed.slice().sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); }).forEach(function (match) {
+          const sets = (match.sets || []).filter(function (set) { return set.a !== "" && set.b !== ""; });
+          const score = sets.map(function (set) { return set.a + "-" + set.b; }).join(" / ") || "Sin resultado";
+          const outcome = matchOutcome(match);
+          const details = [formatDate(match.date), match.courtNumber ? "Cancha " + match.courtNumber : "", setCountLabel(match), match.round || ""].filter(Boolean).join(" · ");
+          lines.push("", "📌 " + details, reportTeam(match, "A") + "  " + score + "  " + reportTeam(match, "B"));
+          if (outcome) lines.push("🏅 Ganó " + reportTeam(match, outcome));
+        });
+        if (pending.length) {
+          lines.push("", "🗓 *Partidos pendientes (" + pending.length + ")*");
+          pending.slice().sort(function (a, b) { return (a.date || "").localeCompare(b.date || ""); }).forEach(function (match) {
+            const details = [formatDate(match.date), match.courtNumber ? "Cancha " + match.courtNumber : "", setCountLabel(match)].filter(Boolean).join(" · ");
+            lines.push("• " + details + ": " + reportTeam(match, "A") + " vs. " + reportTeam(match, "B"));
+          });
+        }
+        return lines.join("\n");
+      }
+
+      function renderTournamentSummary(selectedId) {
+        if (!state.tournaments.length) {
+          return pageHeading("Informe para compartir", "Resumen del torneo", "Prepara los resultados para enviarlos por WhatsApp.", "", "") +
+            '<div class="panel">' + emptyState("↗", "Primero crea un torneo", "Cuando tengas partidos registrados, podrás generar un informe para compartir.", "Crear torneo", "new-tournament") + "</div>";
+        }
+        const previousSelect = document.getElementById("summary-tournament-select");
+        const tournamentId = selectedId || (previousSelect && previousSelect.value) || state.tournaments[0].id;
+        const tournament = tournamentById(tournamentId) || state.tournaments[0];
+        const matches = state.matches.filter(function (match) { return match.tournamentId === tournament.id; });
+        const completedCount = matches.filter(function (match) { return match.status === "Finalizado"; }).length;
+        const pendingCount = matches.length - completedCount;
+        const report = buildTournamentReport(tournament, matches);
+        const shareUrl = "https://wa.me/?text=" + encodeURIComponent(report);
+        return pageHeading("Informe para compartir", "Resumen del torneo", "Revisa los resultados y compártelos con los participantes.", "", "") +
+          '<div class="toolbar"><div class="field" style="width:min(100%, 390px)"><label for="summary-tournament-select">Torneo</label><select id="summary-tournament-select">' +
+          state.tournaments.map(function (item) { return '<option value="' + escapeHtml(item.id) + '"' + (item.id === tournament.id ? " selected" : "") + ">" + escapeHtml(item.name) + "</option>"; }).join("") +
+          '</select></div><span class="helper">' + matches.length + (matches.length === 1 ? " partido" : " partidos") + "</span></div>" +
+          '<div class="stats">' + statCard("Partidos finalizados", completedCount, "Con resultado cargado", "✓") +
+          statCard("Partidos pendientes", pendingCount, "Aún por jugar", "◷") +
+          statCard("Fecha del torneo", formatDate(tournament.date), escapeHtml(tournament.venue || "Sede no informada"), "◈") + '</div>' +
+          '<section class="panel"><div class="panel-heading"><h2>Vista previa del mensaje</h2><div class="report-actions">' +
+          '<button class="button secondary small" data-action="copy-tournament-report" data-id="' + escapeHtml(tournament.id) + '">Copiar texto</button>' +
+          '<a class="button small" href="' + escapeHtml(shareUrl) + '" target="_blank" rel="noopener noreferrer">Enviar por WhatsApp ↗</a>' +
+          '</div></div><pre class="report-text">' + escapeHtml(report) + "</pre></section>";
+      }
+
+      async function copyTournamentReport(id) {
+        const tournament = tournamentById(id);
+        if (!tournament) {
+          toast("Selecciona un torneo para copiar su resumen.", true);
+          return;
+        }
+        try {
+          if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error("El navegador no permite copiar al portapapeles.");
+          await navigator.clipboard.writeText(buildTournamentReport(tournament, state.matches.filter(function (match) { return match.tournamentId === id; })));
+          toast("Resumen copiado. Ya puedes pegarlo en WhatsApp.");
+        } catch (error) {
+          console.error("No se pudo copiar el resumen del torneo.", error);
+          toast("No se pudo copiar el resumen. Usa el botón de WhatsApp para compartirlo.", true);
+        }
+      }
+
+      function openModal(title, subtitle, body, wide) {
+        document.getElementById("modal-root").innerHTML = '<div class="modal-backdrop" data-action="backdrop-close"><section class="modal' + (wide ? " wide" : "") +
+          '" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-header"><div><h2 id="modal-title">' + escapeHtml(title) + '</h2><p>' + escapeHtml(subtitle || "") +
+          '</p></div><button class="close-button" data-action="close-modal" aria-label="Cerrar">×</button></div><div class="modal-body">' + body + "</div></section></div>";
+        document.querySelector(".modal-backdrop").addEventListener("click", function (event) {
+          if (event.target === event.currentTarget) closeModal();
+        });
+      }
+
+      function closeModal() {
+        document.getElementById("modal-root").innerHTML = "";
+      }
+
+      function field(label, name, value, type, required, placeholder, full) {
+        return '<div class="field' + (full ? " full" : "") + '"><label for="' + name + '">' + label + (required ? "" : ' <span class="optional">(opcional)</span>') +
+          '</label><input id="' + name + '" name="' + name + '" type="' + (type || "text") + '" value="' + escapeHtml(value || "") + '"' +
+          (required ? " required" : "") + (placeholder ? ' placeholder="' + escapeHtml(placeholder) + '"' : "") + "></div>";
+      }
+
+      function selectField(label, name, value, options, full) {
+        return '<div class="field' + (full ? " full" : "") + '"><label for="' + name + '">' + label + '</label><select id="' + name + '" name="' + name + '">' +
+          options.map(function (option) { return '<option value="' + escapeHtml(option) + '"' + (value === option ? " selected" : "") + ">" + escapeHtml(option) + "</option>"; }).join("") + "</select></div>";
+      }
+
+      function showPlayerForm(id) {
+        const player = id ? playerById(id) : null;
+        const p = player || { firstName: "", lastName: "", phone: "", email: "", birthDate: "", position: "Drive", category: "8va" };
+        const body = '<form id="player-form"><div class="form-grid">' +
+          field("Nombre", "firstName", p.firstName, "text", true) + field("Apellido", "lastName", p.lastName, "text", true) +
+          field("Teléfono", "phone", p.phone, "tel", false, "+54 9…") + field("Email", "email", p.email, "email", false) +
+          field("Fecha de nacimiento", "birthDate", p.birthDate, "date", false) +
+          selectField("Posición en cancha", "position", p.position || "Drive", ["Drive", "Revés", "Ambas"]) +
+          selectField("Categoría", "category", p.category || "8va", ["1ra", "2da", "3ra", "4ta", "5ta", "6ta", "7ma", "8va"]) +
+          '</div><div class="form-actions"><button type="button" class="button secondary" data-action="close-modal">Cancelar</button><button class="button" type="submit">' + (player ? "Guardar cambios" : "Agregar jugador") + "</button></div></form>";
+        openModal(player ? "Editar jugador" : "Nuevo jugador", "Completa los datos del jugador.", body);
+        document.getElementById("player-form").addEventListener("submit", function (event) {
+          event.preventDefault();
+          const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+          const normalizedEmail = data.email.trim();
+          if (normalizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+            document.getElementById("email").setCustomValidity("Ingresa un email válido.");
+            document.getElementById("email").reportValidity();
+            return;
+          }
+          if (player) Object.assign(player, data);
+          else state.players.push(Object.assign({ id: uid() }, data));
+          const saved = saveState();
+          closeModal();
+          render();
+          if (saved) toast(player ? "Jugador actualizado." : "Jugador agregado.");
+        });
+      }
+
+      function playerSelectMarkup(label, name, selectedId) {
+        return '<div class="field"><label for="' + name + '">' + label + '</label><select id="' + name + '" name="' + name + '" required><option value="">Selecciona un jugador</option>' +
+          state.players.slice().sort(function (a, b) { return fullName(a).localeCompare(fullName(b), "es"); }).map(function (player) {
+            return '<option value="' + escapeHtml(player.id) + '"' + (player.id === selectedId ? " selected" : "") + ">" + escapeHtml(fullName(player)) + " · " +
+              escapeHtml(player.position || "Sin posición") + " · " + escapeHtml(player.category || "Sin categoría") + "</option>";
+          }).join("") + "</select></div>";
+      }
+
+      function showPairForm(id) {
+        if (state.players.length < 2) {
+          toast("Agrega al menos dos jugadores antes de formar una pareja.", true);
+          currentPage = "players";
+          render();
+          return;
+        }
+        const pair = id ? state.pairs.find(function (item) { return item.id === id; }) : null;
+        const p = pair || { firstPlayerId: state.players[0].id, secondPlayerId: state.players[1].id };
+        const body = '<form id="pair-form"><div class="form-grid">' +
+          playerSelectMarkup("Jugador 1", "firstPlayerId", p.firstPlayerId) +
+          playerSelectMarkup("Jugador 2", "secondPlayerId", p.secondPlayerId) +
+          '</div><div class="form-actions"><button type="button" class="button secondary" data-action="close-modal">Cancelar</button><button class="button" type="submit">' +
+          (pair ? "Guardar cambios" : "Crear pareja") + "</button></div></form>";
+        openModal(pair ? "Editar pareja" : "Formar pareja", "La posición aparece junto al nombre para combinar, por ejemplo, un Drive y un Revés.", body);
+        document.getElementById("pair-form").addEventListener("submit", function (event) {
+          event.preventDefault();
+          const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+          if (!data.firstPlayerId || !data.secondPlayerId || data.firstPlayerId === data.secondPlayerId) {
+            toast("Selecciona dos jugadores diferentes.", true);
+            return;
+          }
+          const duplicate = state.pairs.find(function (item) {
+            return item.id !== (pair && pair.id) &&
+              [item.firstPlayerId, item.secondPlayerId].sort().join("|") === [data.firstPlayerId, data.secondPlayerId].sort().join("|");
+          });
+          if (duplicate) {
+            toast("Esa pareja ya está registrada.", true);
+            return;
+          }
+          if (pair) Object.assign(pair, data);
+          else state.pairs.push(Object.assign({ id: uid() }, data));
+          const saved = saveState();
+          closeModal();
+          render();
+          if (saved) toast(pair ? "Pareja actualizada." : "Pareja creada.");
+        });
+      }
+
+      function showTournamentForm(id) {
+        const tournament = id ? tournamentById(id) : null;
+        const t = tournament || { name: "", date: "", venue: "", category: "Todas", fee: 0, status: "Próximo" };
+        const body = '<form id="tournament-form"><div class="form-grid">' +
+          field("Nombre del torneo", "name", t.name, "text", true, "Ej.: Apertura de otoño", true) +
+          field("Fecha", "date", t.date, "date", true) + field("Sede / club", "venue", t.venue, "text", false, "Nombre del club") +
+          selectField("Categoría", "category", t.category || "Todas", ["Todas", "1ra", "2da", "3ra", "4ta", "5ta", "6ta", "7ma", "8va"]) +
+          field("Arancel por jugador ($)", "fee", t.fee, "number", false, "0") +
+          selectField("Estado", "status", t.status || "Próximo", ["Próximo", "En curso", "Finalizado"]) +
+          '</div><div class="form-actions"><button type="button" class="button secondary" data-action="close-modal">Cancelar</button><button class="button" type="submit">' + (tournament ? "Guardar cambios" : "Crear torneo") + "</button></div></form>";
+        openModal(tournament ? "Editar torneo" : "Nuevo torneo", "Configura la competencia y su arancel de inscripción.", body);
+        document.getElementById("tournament-form").addEventListener("submit", function (event) {
+          event.preventDefault();
+          const data = Object.fromEntries(new FormData(event.currentTarget).entries());
+          data.fee = Math.max(0, Number(data.fee) || 0);
+          if (tournament) Object.assign(tournament, data);
+          else state.tournaments.push(Object.assign({ id: uid(), entries: [] }, data));
+          const saved = saveState();
+          closeModal();
+          render();
+          if (saved) toast(tournament ? "Torneo actualizado." : "Torneo creado.");
+        });
+      }
+
+      function showEntries(id) {
+        const tournament = tournamentById(id);
+        if (!tournament) return;
+        if (!Array.isArray(tournament.entries)) tournament.entries = [];
+        const entries = tournament.entries;
+        const enrolled = new Set(entries.map(function (entry) { return entry.playerId; }));
+        const available = state.players.filter(function (player) {
+          return !enrolled.has(player.id) && (!tournament.category || tournament.category === "Todas" || player.category === tournament.category);
+        });
+        const enrolledHtml = entries.length ? entries.map(function (entry) {
+          const player = playerById(entry.playerId);
+          if (!player) return "";
+          return '<div class="activity-item"><div class="avatar">' + escapeHtml(initials(player)) + '</div><div class="activity-copy"><div class="activity-title">' + escapeHtml(fullName(player)) +
+            '</div><div class="activity-meta">' + escapeHtml(player.category || "Sin categoría") + '</div></div><span class="pill ' + (entry.paid ? "paid" : "unpaid") + '">' +
+            (entry.paid ? "Pagado" : (Number(tournament.fee) ? "Pendiente" : "Gratis")) + '</span><button class="icon-button" data-action="toggle-payment" data-id="' + entry.playerId + '" data-tournament="' + tournament.id +
+            '" title="Cambiar estado del pago">' + (entry.paid ? "Desmarcar" : "Marcar pago") + '</button><button class="icon-button delete" data-action="remove-entry" data-id="' + entry.playerId + '" data-tournament="' + tournament.id + '">×</button></div>';
+        }).join("") : '<div class="no-data">Todavía no hay jugadores inscriptos.</div>';
+        const addBlock = available.length ? '<form id="add-entry-form"><div class="field"><label for="entry-player">Inscribir jugador</label><div style="display:flex;gap:8px"><select id="entry-player" name="playerId" required><option value="">Selecciona un jugador</option>' +
+          available.map(function (player) { return '<option value="' + player.id + '">' + escapeHtml(fullName(player) + " · " + player.category) + "</option>"; }).join("") +
+          '</select><button class="button small" type="submit">Inscribir</button></div></div></form>' :
+          '<div class="helper">' + (state.players.length ? "No hay más jugadores de esta categoría disponibles." : "Primero agrega jugadores en la sección Jugadores.") + "</div>";
+        const body = '<div class="history-section"><h3>Inscripciones · ' + entries.length + (entries.length === 1 ? " jugador" : " jugadores") + '</h3><div class="activity-list">' + enrolledHtml +
+          '</div></div><div class="history-section"><h3>Registrar inscripción</h3>' + addBlock + '</div><div class="history-section"><div class="stat-top"><span>Arancel por jugador</span><strong style="color:var(--text)">' +
+          (Number(tournament.fee) ? currency(tournament.fee) : "Gratis") + "</strong></div></div>";
+        openModal("Inscripciones", tournament.name + " · " + formatDate(tournament.date), body, true);
+        const form = document.getElementById("add-entry-form");
+        if (form) form.addEventListener("submit", function (event) {
+          event.preventDefault();
+          const playerId = new FormData(form).get("playerId");
+          if (entries.some(function (entry) { return entry.playerId === playerId; })) return;
+          entries.push({ playerId: playerId, paid: Number(tournament.fee) === 0 });
+          const saved = saveState();
+          showEntries(id);
+          render();
+          if (saved) toast("Jugador inscripto.");
+        });
+      }
+
+      function showMatchForm(id) {
+        if (!state.players.length) {
+          toast("Agrega jugadores antes de programar un partido.", true);
+          return;
+        }
+        if (!state.tournaments.length) {
+          toast("Crea un torneo antes de programar un partido.", true);
+          return;
+        }
+        const availablePairs = state.pairs.filter(function (pair) { return pairPlayers(pair).length === 2; });
+        if (availablePairs.length < 2) {
+          toast("Registra al menos dos parejas para enfrentarlas en un partido.", true);
+          currentPage = "pairs";
+          render();
+          return;
+        }
+        const match = id ? state.matches.find(function (item) { return item.id === id; }) : null;
+        const m = match || { tournamentId: state.tournaments[0].id, date: todayISO(), round: "", courtNumber: 1, setCount: 3, status: "Programado", teamA: [], teamB: [], sets: [] };
+        const tournamentSelect = '<div class="field"><label for="tournamentId">Torneo</label><select id="tournamentId" name="tournamentId" required>' +
+          state.tournaments.map(function (tournament) {
+            return '<option value="' + escapeHtml(tournament.id) + '"' + (tournament.id === m.tournamentId ? " selected" : "") + ">" + escapeHtml(tournament.name) + "</option>";
+          }).join("") + "</select></div>";
+        const currentPairA = match && findPairForPlayers(match.teamA || []);
+        const currentPairB = match && findPairForPlayers(match.teamB || []);
+        const setCount = Math.min(3, Math.max(1, Number(m.setCount) || ((m.sets || []).length || 3)));
+        let scoreDraft = Array.from({ length: 3 }, function (_, index) {
+          return (m.sets || [])[index] || { a: "", b: "" };
+        });
+        const pairSelect = function (team, label, selectedPair) {
+          return '<div class="team-box"><div class="team-title">' + label + '</div><div class="field"><label for="pair' + team + '">Pareja</label><select id="pair' + team + '" name="pair' + team + '" required>' +
+            '<option value="">Selecciona una pareja</option>' + availablePairs.map(function (pair) {
+              return '<option value="' + escapeHtml(pair.id) + '"' + (selectedPair && pair.id === selectedPair.id ? " selected" : "") + ">" +
+                escapeHtml(pairName(pair)) + "</option>";
+            }).join("") + "</select></div><div class=\"pair-players\">" +
+            (selectedPair ? escapeHtml(pairPlayers(selectedPair).map(playerLabelWithPosition).join("  +  ")) : "Elige la pareja que jugará este lado.") + "</div></div>";
+        };
+        const renderSetInputs = function (count) {
+          const visibleCount = count === 2 ? 3 : count;
+          return scoreDraft.slice(0, visibleCount).map(function (set, index) {
+            const label = count === 2 && index === 2 ? "Set decisivo" : "Set " + (index + 1);
+            return '<div style="display:flex;align-items:center;gap:6px"><span class="helper">' + label + '</span><input aria-label="' + label + ', pareja A" name="setA' + index +
+              '" type="number" min="0" max="6" step="1" placeholder="A" value="' + escapeHtml(set.a) + '"><span class="helper">–</span><input aria-label="' + label + ', pareja B" name="setB' + index +
+              '" type="number" min="0" max="6" step="1" placeholder="B" value="' + escapeHtml(set.b) + '"></div>';
+          }).join("");
+        };
+        const body = '<form id="match-form"><div class="form-grid">' +
+          tournamentSelect +
+          field("Fecha", "date", m.date, "date", true) + field("Ronda", "round", m.round, "text", false, "Ej.: Semifinal") +
+          '<div class="field"><label for="courtNumber">Número de cancha</label><input id="courtNumber" name="courtNumber" type="number" min="1" step="1" value="' + escapeHtml(match ? (m.courtNumber || "") : m.courtNumber) + '" required></div>' +
+          selectField("Estado", "status", m.status || "Programado", ["Programado", "Finalizado"]) +
+          selectField("Cantidad de sets", "setCount", String(setCount), ["1", "2", "3"]) + '</div><div class="team-grid" style="margin-top:17px">' +
+          pairSelect("A", "ENFRENTA PAREJA A", currentPairA) + pairSelect("B", "ENFRENTA PAREJA B", currentPairB) +
+          '</div>' + (match && (!currentPairA || !currentPairB) ? '<p class="helper">Este partido no coincide con dos parejas guardadas. Selecciona las parejas registradas para actualizarlo.</p>' : "") +
+          '<div class="field" style="margin-top:16px"><label>Resultado · sets</label><div class="score-row">' + renderSetInputs(setCount) +
+          '</div><span class="helper">Cada set se gana al llegar a 6. En partidos de 2 sets, si quedan 1–1, completa el tercer set decisivo.</span></div><div class="form-actions"><button type="button" class="button secondary" data-action="close-modal">Cancelar</button><button class="button" type="submit">' +
+          (match ? "Guardar cambios" : "Guardar partido") + "</button></div></form>";
+        openModal(match ? "Editar partido" : "Nuevo partido", "Selecciona las parejas y registra el marcador.", body, true);
+        const matchForm = document.getElementById("match-form");
+        matchForm.elements.setCount.addEventListener("change", function (event) {
+          scoreDraft = Array.from({ length: 3 }, function (_, index) {
+            const scoreA = matchForm.elements["setA" + index];
+            const scoreB = matchForm.elements["setB" + index];
+            return scoreA && scoreB ? { a: scoreA.value, b: scoreB.value } : scoreDraft[index] || { a: "", b: "" };
+          });
+          matchForm.querySelector(".score-row").innerHTML = renderSetInputs(Number(event.target.value));
+        });
+        matchForm.addEventListener("submit", function (event) {
+          event.preventDefault();
+          const form = event.currentTarget;
+          const formData = new FormData(form);
+          const pairA = availablePairs.find(function (pair) { return pair.id === formData.get("pairA"); });
+          const pairB = availablePairs.find(function (pair) { return pair.id === formData.get("pairB"); });
+          if (!pairA || !pairB) {
+            toast("Selecciona una pareja para cada lado del partido.", true);
+            return;
+          }
+          const teamA = [pairA.firstPlayerId, pairA.secondPlayerId];
+          const teamB = [pairB.firstPlayerId, pairB.secondPlayerId];
+          if (pairA.id === pairB.id || teamA.some(function (playerId) { return teamB.includes(playerId); })) {
+            toast("Elige dos parejas diferentes, sin jugadores repetidos entre lados.", true);
+            return;
+          }
+          const selectedSetCount = Number(formData.get("setCount"));
+          const sets = Array.from({ length: selectedSetCount }, function (_, index) {
+            return { a: formData.get("setA" + index), b: formData.get("setB" + index) };
+          });
+          const decidingSet = selectedSetCount === 2 ? { a: formData.get("setA2"), b: formData.get("setB2") } : null;
+          const hasDecidingSet = decidingSet && (decidingSet.a !== "" || decidingSet.b !== "");
+          const scoreInputs = decidingSet ? sets.concat(decidingSet) : sets;
+          if (scoreInputs.some(function (set) {
+            const hasA = set.a !== "";
+            const hasB = set.b !== "";
+            return hasA !== hasB || (hasA && !setWinner(set));
+          })) {
+            toast("Cada set debe terminar cuando una pareja llega a 6 (marcador de 6-0 a 6-5).", true);
+            return;
+          }
+          const status = formData.get("status");
+          if (status === "Finalizado" && sets.some(function (set) { return !setWinner(set); })) {
+            toast("Completa el resultado de todos los sets seleccionados.", true);
+            return;
+          }
+          const twoSetTie = selectedSetCount === 2 && sets.every(function (set) { return !!setWinner(set); }) &&
+            setWinner(sets[0]) !== setWinner(sets[1]);
+          if (selectedSetCount === 2 && hasDecidingSet && !twoSetTie) {
+            toast("El tercer set solo se juega si los dos primeros quedan 1-1.", true);
+            return;
+          }
+          if (status === "Finalizado" && twoSetTie) {
+            if (!setWinner(decidingSet)) {
+              toast("Si los primeros dos sets quedan 1-1, completa el tercer set decisivo.", true);
+              return;
+            }
+            sets.push(decidingSet);
+          } else if (status !== "Finalizado" && twoSetTie && hasDecidingSet) {
+            sets.push(decidingSet);
+          }
+          const data = {
+            tournamentId: formData.get("tournamentId"),
+            date: formData.get("date"),
+            round: formData.get("round").trim(),
+            courtNumber: Number(formData.get("courtNumber")),
+            setCount: selectedSetCount,
+            status: formData.get("status"),
+            pairAId: pairA.id,
+            pairBId: pairB.id,
+            teamA: teamA,
+            teamB: teamB,
+            sets: sets
+          };
+          if (match) Object.assign(match, data);
+          else state.matches.push(Object.assign({ id: uid() }, data));
+          const saved = saveState();
+          closeModal();
+          render();
+          if (saved) toast(match ? "Partido actualizado." : "Partido guardado.");
+        });
+      }
+
+      function showPlayerHistory(id) {
+        const player = playerById(id);
+        if (!player) return;
+        const registeredTournaments = state.tournaments.filter(function (tournament) {
+          return (tournament.entries || []).some(function (entry) { return entry.playerId === id; });
+        });
+        const matches = state.matches.filter(function (match) {
+          return (match.teamA || []).includes(id) || (match.teamB || []).includes(id);
+        }).sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+        const tournamentIds = new Set(registeredTournaments.map(function (tournament) { return tournament.id; }));
+        matches.forEach(function (match) {
+          if (match.tournamentId) tournamentIds.add(match.tournamentId);
+        });
+        const tournaments = state.tournaments.filter(function (tournament) {
+          return tournamentIds.has(tournament.id);
+        }).sort(function (a, b) { return (b.date || "").localeCompare(a.date || ""); });
+        const tournamentsHtml = tournaments.length ? tournaments.map(function (tournament) {
+          const entry = (tournament.entries || []).find(function (item) { return item.playerId === id; });
+          const tournamentMatches = matches.filter(function (match) { return match.tournamentId === tournament.id; });
+          const playedCount = tournamentMatches.filter(function (match) { return match.status === "Finalizado"; }).length;
+          const scheduledCount = tournamentMatches.length - playedCount;
+          const tournamentDetails = [formatDate(tournament.date), tournament.category || "Todas las categorías",
+            playedCount + (playedCount === 1 ? " partido jugado" : " partidos jugados")];
+          if (scheduledCount) tournamentDetails.push(scheduledCount + (scheduledCount === 1 ? " programado" : " programados"));
+          const paymentStatus = entry ? '<span class="pill ' + (entry.paid ? "paid" : "unpaid") + '">' +
+            (Number(tournament.fee) ? (entry.paid ? "Pagado" : "Pendiente · " + currency(tournament.fee)) : "Gratis") + "</span>" : "";
+          return '<div class="history-card"><div><div class="history-title">' + escapeHtml(tournament.name) + '</div><div class="history-meta">' +
+            escapeHtml(tournamentDetails.join(" · ")) + '</div></div>' + paymentStatus + "</div>";
+        }).join("") : '<div class="no-data">Aún no participó en torneos.</div>';
+        const matchesHtml = matches.length ? matches.map(function (match) {
+          const tournament = tournamentById(match.tournamentId);
+          const onA = (match.teamA || []).includes(id);
+          const rivalIds = onA ? match.teamB : match.teamA;
+          const rivals = (rivalIds || []).map(playerById).filter(Boolean).map(fullName).join(" / ") || "Sin rival";
+          const score = (match.sets || []).filter(function (set) { return set.a !== "" && set.b !== ""; })
+            .map(function (set) { return onA ? set.a + "-" + set.b : set.b + "-" + set.a; }).join("  ");
+          const earnedPoints = pointsForPlayerInMatch(id, match);
+          const pointsDetails = earnedPoints == null ? "" : "+" + earnedPoints + (earnedPoints === 1 ? " punto" : " puntos");
+          const matchDetails = [formatDate(match.date), match.courtNumber ? "Cancha " + match.courtNumber : "", setCountLabel(match), "vs. " + rivals, pointsDetails].filter(Boolean).join(" · ");
+          return '<div class="history-card"><div><div class="history-title">' + escapeHtml(tournament ? tournament.name : "Partido") + '</div><div class="history-meta">' +
+            escapeHtml(matchDetails) + '</div></div><span class="pill ' + (match.status === "Finalizado" ? "done" : "scheduled") + '">' +
+            escapeHtml(score || match.status || "Programado") + "</span></div>";
+        }).join("") : '<div class="no-data">Aún no tiene partidos registrados.</div>';
+        const totalPoints = playerPoints(id);
+        const pointsLabel = totalPoints === 1 ? "punto acumulado" : "puntos acumulados";
+        openModal(fullName(player), "Historial · " + (player.category || "Sin categoría") + " · " + totalPoints + " " + pointsLabel, '<div class="history-section"><h3>Torneos participados · ' +
+          tournaments.length + '</h3>' + tournamentsHtml + '</div><div class="history-section"><h3>Partidos · ' + matches.length + "</h3>" + matchesHtml + "</div>", true);
+      }
+
+      function deletePlayer(id) {
+        const player = playerById(id);
+        if (!player || !window.confirm("¿Eliminar a " + fullName(player) + "? Se quitará también de las inscripciones y partidos registrados.")) return;
+        state.players = state.players.filter(function (item) { return item.id !== id; });
+        state.tournaments.forEach(function (tournament) {
+          tournament.entries = (tournament.entries || []).filter(function (entry) { return entry.playerId !== id; });
+        });
+        state.pairs = state.pairs.filter(function (pair) {
+          return pair.firstPlayerId !== id && pair.secondPlayerId !== id;
+        });
+        state.matches.forEach(function (match) {
+          match.teamA = (match.teamA || []).filter(function (playerId) { return playerId !== id; });
+          match.teamB = (match.teamB || []).filter(function (playerId) { return playerId !== id; });
+        });
+        const saved = saveState();
+        render();
+        if (saved) toast("Jugador eliminado.");
+      }
+
+      function handleAction(action, id, element) {
+        if (action === "close-modal") closeModal();
+        if (action === "new-player") showPlayerForm();
+        if (action === "edit-player") showPlayerForm(id);
+        if (action === "history-player") showPlayerHistory(id);
+        if (action === "delete-player") deletePlayer(id);
+        if (action === "new-pair") showPairForm();
+        if (action === "edit-pair") showPairForm(id);
+        if (action === "delete-pair") {
+          const pair = state.pairs.find(function (item) { return item.id === id; });
+          if (pair && window.confirm('¿Eliminar la pareja "' + pairName(pair) + '"? Los partidos ya registrados conservarán sus jugadores.')) {
+            state.pairs = state.pairs.filter(function (item) { return item.id !== id; });
+            const saved = saveState(); render(); if (saved) toast("Pareja eliminada.");
+          }
+        }
+        if (action === "new-tournament") showTournamentForm();
+        if (action === "edit-tournament") showTournamentForm(id);
+        if (action === "manage-entries") showEntries(id);
+        if (action === "delete-tournament") {
+          const tournament = tournamentById(id);
+          if (tournament && window.confirm('¿Eliminar el torneo "' + tournament.name + '" y sus partidos asociados?')) {
+            state.tournaments = state.tournaments.filter(function (item) { return item.id !== id; });
+            state.matches = state.matches.filter(function (match) { return match.tournamentId !== id; });
+            const saved = saveState(); render(); if (saved) toast("Torneo eliminado.");
+          }
+        }
+        if (action === "toggle-payment") {
+          const tournament = tournamentById(element.dataset.tournament);
+          const entry = tournament && (tournament.entries || []).find(function (item) { return item.playerId === id; });
+          if (entry) { entry.paid = !entry.paid; const saved = saveState(); showEntries(tournament.id); render(); if (saved) toast(entry.paid ? "Pago registrado." : "Pago marcado como pendiente."); }
+        }
+        if (action === "remove-entry") {
+          const tournament = tournamentById(element.dataset.tournament);
+          if (tournament && window.confirm("¿Quitar este jugador del torneo?")) {
+            tournament.entries = (tournament.entries || []).filter(function (entry) { return entry.playerId !== id; });
+            const saved = saveState(); showEntries(tournament.id); render(); if (saved) toast("Inscripción eliminada.");
+          }
+        }
+        if (action === "new-match") showMatchForm();
+        if (action === "edit-match") showMatchForm(id);
+        if (action === "delete-match") {
+          if (window.confirm("¿Eliminar este partido?")) {
+            state.matches = state.matches.filter(function (match) { return match.id !== id; });
+            const saved = saveState(); render(); if (saved) toast("Partido eliminado.");
+          }
+        }
+        if (action === "copy-tournament-report") copyTournamentReport(id);
+      }
+
+      document.addEventListener("click", function (event) {
+        const navButton = event.target.closest("[data-page]");
+        if (navButton) {
+          currentPage = navButton.dataset.page;
+          render();
+          return;
+        }
+        const actionElement = event.target.closest("[data-action]");
+        if (actionElement) {
+          if (actionElement.dataset.action === "backdrop-close") return;
+          handleAction(actionElement.dataset.action, actionElement.dataset.id, actionElement);
+        }
+      });
+
+      document.addEventListener("input", function (event) {
+        if (event.target.id === "player-search") {
+          const cursor = event.target.selectionStart;
+          document.getElementById("content").innerHTML = renderPlayers(event.target.value);
+          const input = document.getElementById("player-search");
+          input.focus();
+          input.setSelectionRange(cursor, cursor);
+        }
+      });
+
+      document.addEventListener("change", function (event) {
+        if (event.target.id === "summary-tournament-select") {
+          document.getElementById("content").innerHTML = renderTournamentSummary(event.target.value);
+          return;
+        }
+        if (event.target.id === "match-tournament-filter") {
+          const selected = event.target.value;
+          document.getElementById("content").innerHTML = renderMatches(selected);
+          document.getElementById("match-tournament-filter").value = selected;
+        }
+      });
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") closeModal();
+      });
+
+      document.getElementById("today").textContent = new Date().toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      render();
+      if (loadError) showToast("No se pudieron cargar los datos guardados. Inicia en limpio y revisa el almacenamiento del navegador.", true);
+    })();
+  </script>
+  <script>
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js").catch(function (error) {
+          console.error("No se pudo habilitar el funcionamiento sin conexión.", error);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
